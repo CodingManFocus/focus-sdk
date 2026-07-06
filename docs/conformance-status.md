@@ -2,6 +2,10 @@
 
 Last verified: 2026-07-06
 
+Verified revision: `046eb83`
+
+Result artifact timestamp prefix: `2026-07-06T11-35Z`
+
 Command:
 
 ```bash
