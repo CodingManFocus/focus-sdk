@@ -12,6 +12,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
 import io.ktor.http.headersOf
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -157,6 +158,130 @@ class McpOAuthTest {
                 clientSecret = "secret",
             )
         }
+    }
+
+    @Test
+    fun `should declare oauth client credentials extension capability`() {
+        val capabilities = ClientCapabilities().withMcpOAuthClientCredentialsExtension()
+
+        assertEquals(
+            setOf(MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION),
+            capabilities.extensions?.keys,
+        )
+        assertEquals(buildJsonObject {}, capabilities.extensions?.get(MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION))
+    }
+
+    @Test
+    fun `should exchange client credentials using client secret basic`() = runTest {
+        var capturedForm: FormDataContent? = null
+        var capturedAuthorization: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                capturedAuthorization = request.headers[HttpHeaders.Authorization]
+                respondJson(
+                    """
+                    {
+                      "access_token": "machine-token",
+                      "token_type": "Bearer",
+                      "expires_in": 300,
+                      "scope": "tools:call"
+                    }
+                    """.trimIndent(),
+                )
+            },
+        )
+
+        val response = exchangeMcpOAuthClientCredentials(
+            client,
+            clientCredentialsRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+                scope = "tools:call",
+            ),
+        )
+
+        assertEquals("Basic Y2xpZW50OnNlY3JldA==", capturedAuthorization)
+        assertEquals("client_credentials", capturedForm?.formData?.get("grant_type"))
+        assertEquals("https://mcp.example.com/mcp", capturedForm?.formData?.get("resource"))
+        assertEquals("tools:call", capturedForm?.formData?.get("scope"))
+        assertNull(capturedForm?.formData?.get("client_id"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+        assertEquals("machine-token", response.accessToken)
+        assertEquals("Bearer", response.tokenType)
+        assertEquals(300, response.expiresIn)
+        assertEquals("tools:call", response.scope)
+    }
+
+    @Test
+    fun `should exchange client credentials using client secret post`() = runTest {
+        var capturedForm: FormDataContent? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                respondJson("""{"access_token":"machine-token"}""")
+            },
+        )
+
+        exchangeMcpOAuthClientCredentials(
+            client,
+            clientCredentialsRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretPost),
+        )
+
+        assertEquals("client_credentials", capturedForm?.formData?.get("grant_type"))
+        assertEquals("client", capturedForm?.formData?.get("client_id"))
+        assertEquals("secret", capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should fail client credentials exchange on oauth error response`() = runTest {
+        val client = HttpClient(
+            MockEngine {
+                respondJson(
+                    """{"error":"invalid_client","error_description":"bad credentials"}""",
+                    status = HttpStatusCode.Unauthorized,
+                )
+            },
+        )
+
+        assertFailsWith<McpOAuthException> {
+            exchangeMcpOAuthClientCredentials(
+                client,
+                clientCredentialsRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic),
+            )
+        }
+    }
+
+    @Test
+    fun `should install client credentials provider and retry unauthorized request`() = runTest {
+        val tokenRequests = mutableListOf<String?>()
+        val tokenClient = HttpClient(
+            MockEngine { request ->
+                tokenRequests += (request.body as FormDataContent).formData["grant_type"]
+                respondJson("""{"access_token":"machine-token-${tokenRequests.size}"}""")
+            },
+        )
+        val seenAuthorizationHeaders = mutableListOf<String?>()
+        val mcpClient = HttpClient(
+            MockEngine { request ->
+                seenAuthorizationHeaders += request.headers[HttpHeaders.Authorization]
+                when (request.headers[HttpHeaders.Authorization]) {
+                    "Bearer machine-token-1" -> respond("", status = HttpStatusCode.Unauthorized)
+                    "Bearer machine-token-2" -> respond("ok")
+                    else -> error("Unexpected Authorization header: ${request.headers[HttpHeaders.Authorization]}")
+                }
+            },
+        )
+        val provider = McpOAuthClientCredentialsProvider(
+            tokenClient,
+            clientCredentialsRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic),
+        )
+        mcpClient.installMcpOAuthClientCredentials(provider)
+
+        mcpClient.get("https://mcp.example.com/mcp")
+
+        assertEquals(listOf<String?>("client_credentials", "client_credentials"), tokenRequests)
+        assertEquals(listOf<String?>("Bearer machine-token-1", "Bearer machine-token-2"), seenAuthorizationHeaders)
+        assertEquals("machine-token-2", provider.currentAccessToken)
     }
 
     @Test
@@ -709,6 +834,22 @@ class McpOAuthTest {
             )
         }
     }
+
+    private fun clientCredentialsRequest(
+        authMethod: McpOAuthTokenEndpointAuthMethod,
+        clientId: String = "client",
+        clientSecret: String? = "secret",
+        scope: String? = null,
+    ): McpOAuthClientCredentialsTokenRequest = McpOAuthClientCredentialsTokenRequest(
+        tokenEndpoint = "https://auth.example.com/token",
+        resource = "https://mcp.example.com/mcp",
+        scope = scope,
+        clientCredentials = McpOAuthClientCredentials(
+            clientId = clientId,
+            clientSecret = clientSecret,
+        ),
+        tokenEndpointAuthMethod = authMethod,
+    )
 
     private fun MockRequestHandleScope.respondJson(content: String, status: HttpStatusCode = HttpStatusCode.OK) =
         respond(

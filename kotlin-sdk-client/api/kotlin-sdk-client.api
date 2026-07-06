@@ -206,6 +206,33 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClient
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsProvider {
+	public fun <init> (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest;)V
+	public final fun accessToken (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun accessToken$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsProvider;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getCurrentAccessToken ()Ljava/lang/String;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest;
+	public static synthetic fun copy$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest;Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;ILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientCredentials ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;
+	public final fun getResource ()Ljava/lang/String;
+	public final fun getScope ()Ljava/lang/String;
+	public final fun getTokenEndpoint ()Ljava/lang/String;
+	public final fun getTokenEndpointAuthMethod ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthDiscoveryResult {
 	public fun <init> (Lio/modelcontextprotocol/kotlin/sdk/client/auth/OAuthProtectedResourceMetadata;Lio/modelcontextprotocol/kotlin/sdk/client/auth/OAuthAuthorizationServerMetadata;)V
 	public final fun component1 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/OAuthProtectedResourceMetadata;
@@ -225,6 +252,7 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthExcept
 }
 
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthKt {
+	public static final field MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION Ljava/lang/String;
 	public static final fun buildMcpOAuthAuthorizationUrl (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationRequest;)Ljava/lang/String;
 	public static final fun discoverMcpAuthorizationServerMetadata (Lio/ktor/client/HttpClient;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun discoverMcpOAuthMetadata (Lio/ktor/client/HttpClient;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -232,10 +260,13 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthKt {
 	public static final fun discoverMcpProtectedResourceMetadata (Lio/ktor/client/HttpClient;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun discoverMcpProtectedResourceMetadata$default (Lio/ktor/client/HttpClient;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun exchangeMcpOAuthAuthorizationCode (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCodeTokenRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun exchangeMcpOAuthClientCredentials (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsTokenRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun installMcpOAuthBearerAuth (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore;Lkotlin/jvm/functions/Function2;)V
+	public static final fun installMcpOAuthClientCredentials (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentialsProvider;)V
 	public static final fun mcpAuthorizationServerMetadataUrls (Ljava/lang/String;)Ljava/util/List;
 	public static final fun mcpBearerAuth (Ljava/lang/String;)Lkotlin/jvm/functions/Function1;
 	public static final fun mcpBearerAuth (Lkotlin/jvm/functions/Function0;)Lkotlin/jvm/functions/Function1;
+	public static final fun mcpOAuthClientCredentialsExtension ()Ljava/util/Map;
 	public static final fun mcpOAuthOrigin (Ljava/lang/String;)Ljava/lang/String;
 	public static final fun mcpOAuthStepUpScope (Ljava/lang/String;)Ljava/lang/String;
 	public static final fun mcpPkceCodeChallengeS256 (Ljava/lang/String;)Ljava/lang/String;
@@ -247,6 +278,7 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthKt {
 	public static final fun requireMcpPkceS256Support (Lio/modelcontextprotocol/kotlin/sdk/client/auth/OAuthAuthorizationServerMetadata;)V
 	public static final fun selectMcpOAuthScope (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 	public static final fun selectMcpOAuthTokenEndpointAuthMethod (Lio/modelcontextprotocol/kotlin/sdk/client/auth/OAuthAuthorizationServerMetadata;Ljava/lang/String;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;
+	public static final fun withMcpOAuthClientCredentialsExtension (Lio/modelcontextprotocol/kotlin/sdk/types/ClientCapabilities;)Lio/modelcontextprotocol/kotlin/sdk/types/ClientCapabilities;
 	public static final fun wwwAuthenticateParameter (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 	public static synthetic fun wwwAuthenticateParameter$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
 }

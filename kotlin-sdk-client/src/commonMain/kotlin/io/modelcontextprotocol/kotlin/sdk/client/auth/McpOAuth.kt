@@ -15,6 +15,8 @@ import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.isSuccess
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -22,6 +24,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+
+/** Capability extension identifier for OAuth client credentials. */
+public const val MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION: String = "io.modelcontextprotocol/oauth-client-credentials"
 
 /**
  * OAuth 2.0 Protected Resource Metadata for an MCP server.
@@ -173,6 +178,21 @@ public data class McpOAuthRefreshTokenRequest(
 )
 
 /**
+ * Parameters for obtaining an MCP OAuth access token with the client credentials grant.
+ *
+ * This is intended for machine-to-machine MCP clients. User-delegated access should use
+ * the authorization-code flow instead.
+ */
+public data class McpOAuthClientCredentialsTokenRequest(
+    public val tokenEndpoint: String,
+    public val resource: String,
+    public val clientCredentials: McpOAuthClientCredentials,
+    public val scope: String? = null,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod =
+        McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+)
+
+/**
  * OAuth token response returned by an authorization server.
  */
 public data class McpOAuthTokenResponse(
@@ -200,6 +220,36 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
     public fun update(tokens: McpOAuthTokenResponse) {
         accessToken = tokens.accessToken
         refreshToken = tokens.refreshToken ?: refreshToken
+    }
+}
+
+/**
+ * Token provider for MCP OAuth client credentials flows.
+ *
+ * The provider obtains a token lazily and obtains a fresh token again when forced.
+ * It does not persist credentials or tokens; applications should keep client secrets
+ * in an appropriate secret store.
+ */
+public class McpOAuthClientCredentialsProvider(
+    private val httpClient: HttpClient,
+    private val request: McpOAuthClientCredentialsTokenRequest,
+) {
+    private var tokenStore: McpOAuthTokenStore? = null
+
+    /** Current access token, or `null` before the provider obtains one. */
+    public val currentAccessToken: String?
+        get() = tokenStore?.accessToken
+
+    /** Obtains an access token, reusing the current token unless [forceRefresh] is true. */
+    public suspend fun accessToken(forceRefresh: Boolean = false): String {
+        val existing = tokenStore
+        if (!forceRefresh && existing != null) {
+            return existing.accessToken
+        }
+
+        val tokens = exchangeMcpOAuthClientCredentials(httpClient, request)
+        tokenStore = McpOAuthTokenStore(tokens)
+        return tokens.accessToken
     }
 }
 
@@ -355,6 +405,39 @@ public suspend fun refreshMcpOAuthAccessToken(
         val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
             .ifEmpty { body }
         throw McpOAuthException("Token refresh failed (${response.status}): $errorDetail")
+    }
+
+    return json.toMcpOAuthTokenResponse()
+}
+
+/**
+ * Exchanges MCP OAuth client credentials for an access token.
+ */
+public suspend fun exchangeMcpOAuthClientCredentials(
+    httpClient: HttpClient,
+    request: McpOAuthClientCredentialsTokenRequest,
+): McpOAuthTokenResponse {
+    val response = submitMcpOAuthTokenRequest(
+        httpClient = httpClient,
+        tokenEndpoint = request.tokenEndpoint,
+        formParameters = request.tokenFormParameters(),
+        clientCredentials = request.clientCredentials,
+        tokenEndpointAuthMethod = request.tokenEndpointAuthMethod,
+    )
+
+    val body = response.bodyAsText()
+    val json = try {
+        McpJson.parseToJsonElement(body).jsonObject
+    } catch (e: Exception) {
+        throw McpOAuthException("Failed to parse token response from ${request.tokenEndpoint}", e)
+    }
+
+    val responseError = json.stringOrNull("error")
+    if (!response.status.isSuccess() || responseError != null) {
+        val errorDescription = json.stringOrNull("error_description")
+        val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
+            .ifEmpty { body }
+        throw McpOAuthException("Client credentials token exchange failed (${response.status}): $errorDetail")
     }
 
     return json.toMcpOAuthTokenResponse()
@@ -540,6 +623,37 @@ public fun HttpClient.installMcpOAuthBearerAuth(
     }
 }
 
+/**
+ * Installs bearer authentication backed by an MCP OAuth client credentials provider.
+ *
+ * The provider obtains a token before the first request. If the MCP server returns
+ * `401 Unauthorized`, the provider obtains a fresh token and retries once.
+ */
+public fun HttpClient.installMcpOAuthClientCredentials(provider: McpOAuthClientCredentialsProvider) {
+    plugin(HttpSend).intercept { request ->
+        mcpBearerAuth(provider.accessToken())(request)
+        val response = execute(request)
+        if (response.response.status != HttpStatusCode.Unauthorized) {
+            return@intercept response
+        }
+
+        mcpBearerAuth(provider.accessToken(forceRefresh = true))(request)
+        execute(request)
+    }
+}
+
+/**
+ * Returns the capability map entry used to declare OAuth client credentials support.
+ */
+public fun mcpOAuthClientCredentialsExtension(): Map<String, JsonObject> =
+    mapOf(MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION to EmptyJsonObject)
+
+/**
+ * Returns a copy of these capabilities declaring OAuth client credentials support.
+ */
+public fun ClientCapabilities.withMcpOAuthClientCredentialsExtension(): ClientCapabilities =
+    copy(extensions = extensions.orEmpty() + mcpOAuthClientCredentialsExtension())
+
 private suspend fun fetchFirstJsonObject(httpClient: HttpClient, urls: List<String>, description: String): JsonObject {
     val failures = mutableListOf<String>()
     for (url in urls) {
@@ -628,6 +742,12 @@ private fun McpOAuthAuthorizationCodeTokenRequest.tokenFormParameters(): Paramet
 private fun McpOAuthRefreshTokenRequest.tokenFormParameters(): Parameters = Parameters.build {
     append("grant_type", "refresh_token")
     append("refresh_token", refreshToken)
+    append("resource", resource)
+    scope?.let { append("scope", it) }
+}
+
+private fun McpOAuthClientCredentialsTokenRequest.tokenFormParameters(): Parameters = Parameters.build {
+    append("grant_type", "client_credentials")
     append("resource", resource)
     scope?.let { append("scope", it) }
 }

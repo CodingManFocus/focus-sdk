@@ -33,6 +33,8 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - Refresh-token exchange.
 - Bearer-token request decoration.
 - One automatic refresh/retry on `401 Unauthorized` for Ktor HTTP clients.
+- Client credentials token exchange and a Ktor bearer provider for
+  machine-to-machine clients.
 
 The SDK does not yet provide a complete browser callback server, persistent
 token vault, dynamic client registration client, JWT client assertion builder,
@@ -264,20 +266,69 @@ credential providers instead of the HTTP OAuth flow.
 
 ## Client Credentials and Extensions
 
-The base SDK helper set focuses on authorization-code and refresh-token flows.
-The conformance harness also exercises client credentials scenarios, but the
-SDK does not yet expose a high-level client credentials provider comparable to
-the Tier 1 TypeScript/Python extension providers.
+Use client credentials only for machine-to-machine MCP clients without a human
+resource owner. User-delegated access should use the authorization-code flow.
 
-Until that provider exists, applications can:
+Declare the OAuth client credentials extension in client capabilities:
 
-- Obtain a client credentials access token with their chosen OAuth library.
-- Attach it to Streamable HTTP or SSE requests with `mcpBearerAuth`.
-- Refresh or replace the token before expiry.
-- Declare extension support in MCP capabilities only when the application
-  implements the extension contract.
+```kotlin
+import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
+import io.modelcontextprotocol.kotlin.sdk.client.auth.withMcpOAuthClientCredentialsExtension
+import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
 
-Track this as a remaining Tier 1 parity task.
+val options = ClientOptions(
+    capabilities = ClientCapabilities()
+        .withMcpOAuthClientCredentialsExtension(),
+)
+```
+
+For client-secret deployments, use `McpOAuthClientCredentialsProvider` and
+install it on the Ktor client used by Streamable HTTP or SSE:
+
+```kotlin
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.sse.SSE
+import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsProvider
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsTokenRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenEndpointAuthMethod
+import io.modelcontextprotocol.kotlin.sdk.client.auth.installMcpOAuthClientCredentials
+
+val tokenClient = HttpClient()
+val provider = McpOAuthClientCredentialsProvider(
+    httpClient = tokenClient,
+    request = McpOAuthClientCredentialsTokenRequest(
+        tokenEndpoint = "https://auth.example.com/token",
+        resource = "https://mcp.example.com/mcp",
+        scope = "tools:call",
+        clientCredentials = McpOAuthClientCredentials(
+            clientId = "my-service",
+            clientSecret = System.getenv("MCP_CLIENT_SECRET"),
+        ),
+        tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+    ),
+)
+
+val mcpHttpClient = HttpClient {
+    install(SSE)
+}
+mcpHttpClient.installMcpOAuthClientCredentials(provider)
+
+val transport = StreamableHttpClientTransport(
+    client = mcpHttpClient,
+    url = "https://mcp.example.com/mcp",
+)
+```
+
+The provider obtains a token before the first protected MCP request. If the
+server returns `401 Unauthorized`, it obtains a fresh client credentials token
+and retries the request once.
+
+JWT private-key assertions are recommended by the extension for stronger
+deployments, but the Kotlin SDK does not yet provide a JWT assertion provider.
+Use a dedicated OAuth/JWT library for that flow until a first-class SDK helper
+exists.
 
 ## Security Checklist
 

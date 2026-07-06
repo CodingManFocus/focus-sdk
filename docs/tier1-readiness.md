@@ -105,10 +105,11 @@ Known gaps and risks:
   identifier.
 - Client auth now has initial reusable discovery, bearer-header, PKCE S256,
   authorization request, authorization-code token exchange, refresh token
-  primitives, and dynamic Streamable HTTP bearer-header coverage, but the full
-  SDK OAuth flow still needs end-to-end transport integration.
+  primitives, client credentials token exchange/provider support, and dynamic
+  Streamable HTTP bearer-header coverage, but the full SDK OAuth flow still
+  needs end-to-end transport integration.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but
-  high-level client credentials providers, dynamic registration guidance, and
+  JWT private-key assertion support, dynamic registration guidance, and
   server-side resource-server middleware/examples are still open.
 - Feature docs are not yet comprehensive for URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
@@ -150,7 +151,7 @@ Known gaps and risks:
 - Add feature examples for elicitation, URL-mode elicitation, sampling with
   tools, Streamable HTTP resumability, and security-sensitive host validation.
 - Continue auth/OAuth parity from the current guide toward high-level client
-  credentials providers and server-side resource-server examples.
+  credentials JWT support and server-side resource-server examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1
