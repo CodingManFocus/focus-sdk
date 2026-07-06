@@ -134,6 +134,10 @@ class McpOAuthTest {
             McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
             tokenRequest().tokenEndpointAuthMethod,
         )
+        assertEquals(
+            McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+            refreshRequest().tokenEndpointAuthMethod,
+        )
         assertFailsWith<McpOAuthException> {
             selectMcpOAuthTokenEndpointAuthMethod(
                 OAuthAuthorizationServerMetadata(
@@ -141,6 +145,107 @@ class McpOAuthTest {
                     raw = buildJsonObject {},
                 ),
                 clientSecret = "secret",
+            )
+        }
+    }
+
+    @Test
+    fun `should refresh access token using client secret basic`() = runTest {
+        var capturedForm: FormDataContent? = null
+        var capturedAuthorization: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                capturedAuthorization = request.headers[HttpHeaders.Authorization]
+                respondJson(
+                    """
+                    {
+                      "access_token": "access-refreshed",
+                      "token_type": "Bearer",
+                      "expires_in": 3600,
+                      "refresh_token": "refresh-next",
+                      "scope": "files:read"
+                    }
+                    """.trimIndent(),
+                )
+            },
+        )
+
+        val response = refreshMcpOAuthAccessToken(
+            client,
+            refreshRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+                scope = "files:read",
+            ),
+        )
+
+        assertEquals("Basic Y2xpZW50OnNlY3JldA==", capturedAuthorization)
+        assertEquals("refresh_token", capturedForm?.formData?.get("grant_type"))
+        assertEquals("refresh-123", capturedForm?.formData?.get("refresh_token"))
+        assertEquals("https://mcp.example.com/mcp", capturedForm?.formData?.get("resource"))
+        assertEquals("files:read", capturedForm?.formData?.get("scope"))
+        assertNull(capturedForm?.formData?.get("client_id"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+        assertEquals("access-refreshed", response.accessToken)
+        assertEquals("Bearer", response.tokenType)
+        assertEquals(3600, response.expiresIn)
+        assertEquals("refresh-next", response.refreshToken)
+        assertEquals("files:read", response.scope)
+    }
+
+    @Test
+    fun `should refresh access token using public client auth`() = runTest {
+        var capturedForm: FormDataContent? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                respondJson("""{"access_token":"access-refreshed"}""")
+            },
+        )
+
+        refreshMcpOAuthAccessToken(
+            client,
+            refreshRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.None,
+                clientSecret = null,
+            ),
+        )
+
+        assertEquals("refresh_token", capturedForm?.formData?.get("grant_type"))
+        assertEquals("client", capturedForm?.formData?.get("client_id"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should fail refresh token exchange on oauth error response`() = runTest {
+        val client = HttpClient(
+            MockEngine {
+                respondJson(
+                    """{"error":"invalid_grant","error_description":"expired refresh token"}""",
+                    status = HttpStatusCode.BadRequest,
+                )
+            },
+        )
+
+        assertFailsWith<McpOAuthException> {
+            refreshMcpOAuthAccessToken(
+                client,
+                refreshRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretPost),
+            )
+        }
+    }
+
+    @Test
+    fun `should fail client secret post refresh without client secret`() = runTest {
+        val client = HttpClient(MockEngine { error("Token request should not be sent") })
+
+        assertFailsWith<McpOAuthException> {
+            refreshMcpOAuthAccessToken(
+                client,
+                refreshRequest(
+                    authMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretPost,
+                    clientSecret = null,
+                ),
             )
         }
     }
@@ -524,6 +629,36 @@ class McpOAuthTest {
                 redirectUri = "http://127.0.0.1/callback",
                 codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
                 resource = "https://mcp.example.com/mcp",
+                clientCredentials = clientCredentials,
+                tokenEndpointAuthMethod = authMethod,
+            )
+        }
+    }
+
+    private fun refreshRequest(
+        authMethod: McpOAuthTokenEndpointAuthMethod? = null,
+        clientId: String = "client",
+        clientSecret: String? = "secret",
+        scope: String? = null,
+    ): McpOAuthRefreshTokenRequest {
+        val clientCredentials = McpOAuthClientCredentials(
+            clientId = clientId,
+            clientSecret = clientSecret,
+        )
+        return if (authMethod == null) {
+            McpOAuthRefreshTokenRequest(
+                tokenEndpoint = "https://auth.example.com/token",
+                refreshToken = "refresh-123",
+                resource = "https://mcp.example.com/mcp",
+                scope = scope,
+                clientCredentials = clientCredentials,
+            )
+        } else {
+            McpOAuthRefreshTokenRequest(
+                tokenEndpoint = "https://auth.example.com/token",
+                refreshToken = "refresh-123",
+                resource = "https://mcp.example.com/mcp",
+                scope = scope,
                 clientCredentials = clientCredentials,
                 tokenEndpointAuthMethod = authMethod,
             )

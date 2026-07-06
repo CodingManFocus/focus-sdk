@@ -5,6 +5,7 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Parameters
@@ -154,6 +155,21 @@ public data class McpOAuthAuthorizationCodeTokenRequest(
 )
 
 /**
+ * Parameters for refreshing an MCP OAuth access token.
+ *
+ * MCP clients must include the `resource` parameter in token requests.
+ */
+public data class McpOAuthRefreshTokenRequest(
+    public val tokenEndpoint: String,
+    public val refreshToken: String,
+    public val resource: String,
+    public val scope: String? = null,
+    public val clientCredentials: McpOAuthClientCredentials,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod =
+        McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+)
+
+/**
  * OAuth token response returned by an authorization server.
  */
 public data class McpOAuthTokenResponse(
@@ -262,24 +278,13 @@ public suspend fun exchangeMcpOAuthAuthorizationCode(
     request: McpOAuthAuthorizationCodeTokenRequest,
 ): McpOAuthTokenResponse {
     requireValidPkceVerifier(request.codeVerifier)
-    val response = when (request.tokenEndpointAuthMethod) {
-        McpOAuthTokenEndpointAuthMethod.ClientSecretBasic -> httpClient.submitForm(
-            url = request.tokenEndpoint,
-            formParameters = request.tokenFormParameters(includeClientCredentials = false),
-        ) {
-            header(HttpHeaders.Authorization, request.basicAuthorizationHeader())
-        }
-
-        McpOAuthTokenEndpointAuthMethod.ClientSecretPost -> httpClient.submitForm(
-            url = request.tokenEndpoint,
-            formParameters = request.tokenFormParameters(includeClientCredentials = true),
-        )
-
-        McpOAuthTokenEndpointAuthMethod.None -> httpClient.submitForm(
-            url = request.tokenEndpoint,
-            formParameters = request.tokenFormParameters(includeClientCredentials = true),
-        )
-    }
+    val response = submitMcpOAuthTokenRequest(
+        httpClient = httpClient,
+        tokenEndpoint = request.tokenEndpoint,
+        formParameters = request.tokenFormParameters(),
+        clientCredentials = request.clientCredentials,
+        tokenEndpointAuthMethod = request.tokenEndpointAuthMethod,
+    )
 
     val body = response.bodyAsText()
     val json = try {
@@ -294,6 +299,39 @@ public suspend fun exchangeMcpOAuthAuthorizationCode(
         val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
             .ifEmpty { body }
         throw McpOAuthException("Token exchange failed (${response.status}): $errorDetail")
+    }
+
+    return json.toMcpOAuthTokenResponse()
+}
+
+/**
+ * Refreshes an MCP OAuth access token using the refresh-token grant.
+ */
+public suspend fun refreshMcpOAuthAccessToken(
+    httpClient: HttpClient,
+    request: McpOAuthRefreshTokenRequest,
+): McpOAuthTokenResponse {
+    val response = submitMcpOAuthTokenRequest(
+        httpClient = httpClient,
+        tokenEndpoint = request.tokenEndpoint,
+        formParameters = request.tokenFormParameters(),
+        clientCredentials = request.clientCredentials,
+        tokenEndpointAuthMethod = request.tokenEndpointAuthMethod,
+    )
+
+    val body = response.bodyAsText()
+    val json = try {
+        McpJson.parseToJsonElement(body).jsonObject
+    } catch (e: Exception) {
+        throw McpOAuthException("Failed to parse token response from ${request.tokenEndpoint}", e)
+    }
+
+    val responseError = json.stringOrNull("error")
+    if (!response.status.isSuccess() || responseError != null) {
+        val errorDescription = json.stringOrNull("error_description")
+        val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
+            .ifEmpty { body }
+        throw McpOAuthException("Token refresh failed (${response.status}): $errorDetail")
     }
 
     return json.toMcpOAuthTokenResponse()
@@ -492,32 +530,68 @@ private fun JsonObject.toMcpOAuthTokenResponse(): McpOAuthTokenResponse = McpOAu
 private fun tokenEndpointAuthMethodFromWireValueOrNull(value: String): McpOAuthTokenEndpointAuthMethod? =
     McpOAuthTokenEndpointAuthMethod.entries.firstOrNull { it.wireValue == value }
 
-private fun McpOAuthAuthorizationCodeTokenRequest.tokenFormParameters(includeClientCredentials: Boolean): Parameters =
-    Parameters.build {
-        append("grant_type", "authorization_code")
-        append("code", code)
-        append("redirect_uri", redirectUri)
-        append("code_verifier", codeVerifier)
-        append("resource", resource)
-
-        if (includeClientCredentials) {
-            append("client_id", clientCredentials.clientId)
-            if (tokenEndpointAuthMethod != McpOAuthTokenEndpointAuthMethod.None) {
-                append("client_secret", requireClientSecret(tokenEndpointAuthMethod))
-            }
-        }
+private suspend fun submitMcpOAuthTokenRequest(
+    httpClient: HttpClient,
+    tokenEndpoint: String,
+    formParameters: Parameters,
+    clientCredentials: McpOAuthClientCredentials,
+    tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod,
+): HttpResponse = when (tokenEndpointAuthMethod) {
+    McpOAuthTokenEndpointAuthMethod.ClientSecretBasic -> httpClient.submitForm(
+        url = tokenEndpoint,
+        formParameters = formParameters,
+    ) {
+        header(
+            HttpHeaders.Authorization,
+            clientCredentials.basicAuthorizationHeader(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic),
+        )
     }
 
-private fun McpOAuthAuthorizationCodeTokenRequest.basicAuthorizationHeader(): String {
-    val clientSecret = requireClientSecret(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic)
-    val userPass = "${formUrlEncode(clientCredentials.clientId)}:${formUrlEncode(clientSecret)}"
+    McpOAuthTokenEndpointAuthMethod.ClientSecretPost -> httpClient.submitForm(
+        url = tokenEndpoint,
+        formParameters = formParameters.withClientCredentials(clientCredentials, tokenEndpointAuthMethod),
+    )
+
+    McpOAuthTokenEndpointAuthMethod.None -> httpClient.submitForm(
+        url = tokenEndpoint,
+        formParameters = formParameters.withClientCredentials(clientCredentials, tokenEndpointAuthMethod),
+    )
+}
+
+private fun McpOAuthAuthorizationCodeTokenRequest.tokenFormParameters(): Parameters = Parameters.build {
+    append("grant_type", "authorization_code")
+    append("code", code)
+    append("redirect_uri", redirectUri)
+    append("code_verifier", codeVerifier)
+    append("resource", resource)
+}
+
+private fun McpOAuthRefreshTokenRequest.tokenFormParameters(): Parameters = Parameters.build {
+    append("grant_type", "refresh_token")
+    append("refresh_token", refreshToken)
+    append("resource", resource)
+    scope?.let { append("scope", it) }
+}
+
+private fun Parameters.withClientCredentials(
+    clientCredentials: McpOAuthClientCredentials,
+    tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod,
+): Parameters = Parameters.build {
+    appendAll(this@withClientCredentials)
+    append("client_id", clientCredentials.clientId)
+    if (tokenEndpointAuthMethod != McpOAuthTokenEndpointAuthMethod.None) {
+        append("client_secret", clientCredentials.requireClientSecret(tokenEndpointAuthMethod))
+    }
+}
+
+private fun McpOAuthClientCredentials.basicAuthorizationHeader(authMethod: McpOAuthTokenEndpointAuthMethod): String {
+    val clientSecret = requireClientSecret(authMethod)
+    val userPass = "${formUrlEncode(clientId)}:${formUrlEncode(clientSecret)}"
     return "Basic ${base64Standard(userPass.encodeToByteArray())}"
 }
 
-private fun McpOAuthAuthorizationCodeTokenRequest.requireClientSecret(
-    authMethod: McpOAuthTokenEndpointAuthMethod,
-): String = clientCredentials.clientSecret
-    ?: throw McpOAuthException("${authMethod.wireValue} requires a client secret")
+private fun McpOAuthClientCredentials.requireClientSecret(authMethod: McpOAuthTokenEndpointAuthMethod): String =
+    clientSecret ?: throw McpOAuthException("${authMethod.wireValue} requires a client secret")
 
 private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.content
 
