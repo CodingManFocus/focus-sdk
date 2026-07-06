@@ -9,9 +9,12 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
@@ -60,6 +63,78 @@ public sealed class McpOAuthBearerTokenValidationResult {
  */
 public fun interface McpOAuthBearerTokenValidator {
     public suspend fun validate(call: ApplicationCall, accessToken: String): McpOAuthBearerTokenValidationResult
+}
+
+/**
+ * Validates common JWT access-token claims for an MCP resource server.
+ *
+ * This helper does not verify a JWT signature, select a JWKS key, or validate
+ * the token issuer's trust relationship. Call it only after cryptographic token
+ * verification has succeeded. The helper validates issuer, audience, expiry,
+ * and not-before style time claims, then returns scopes from `scope` and `scp`
+ * claims for [requireMcpOAuthBearer] to enforce.
+ *
+ * @param claims verified JWT claims.
+ * @param resource canonical MCP resource URI expected in the `aud` claim.
+ * @param currentEpochSeconds current Unix time in seconds.
+ * @param issuer expected issuer, or `null` to skip issuer matching.
+ * @param clockSkewSeconds permitted clock skew in seconds for time claims.
+ */
+public fun validateMcpOAuthJwtClaims(
+    claims: JsonObject,
+    resource: String,
+    currentEpochSeconds: Long,
+    issuer: String? = null,
+    clockSkewSeconds: Long = 60,
+): McpOAuthBearerTokenValidationResult {
+    require(clockSkewSeconds >= 0) {
+        "clockSkewSeconds must be non-negative"
+    }
+
+    if (issuer != null && claims.stringClaim("iss") != issuer) {
+        return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token issuer does not match",
+        )
+    }
+
+    val audiences = claims.audienceClaim()
+    if (audiences == null || resource !in audiences) {
+        return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token audience does not include MCP resource",
+        )
+    }
+
+    val expiresAt = claims.numericDateClaim("exp")
+        ?: return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token expiry is missing",
+        )
+    if (currentEpochSeconds - clockSkewSeconds >= expiresAt) {
+        return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token is expired",
+        )
+    }
+
+    val notBefore = claims.numericDateClaim("nbf")
+    if (notBefore != null && currentEpochSeconds + clockSkewSeconds < notBefore) {
+        return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token is not yet valid",
+        )
+    }
+
+    val issuedAt = claims.numericDateClaim("iat")
+    if (issuedAt != null && currentEpochSeconds + clockSkewSeconds < issuedAt) {
+        return McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token issued-at time is in the future",
+        )
+    }
+
+    return McpOAuthBearerTokenValidationResult.Valid(scopes = claims.oauthScopes())
 }
 
 /**
@@ -234,3 +309,35 @@ private fun ApplicationCall.mcpOAuthBearerToken(): String? {
     if (!authorization.startsWith(prefix, ignoreCase = true)) return null
     return authorization.drop(prefix.length).trim().takeIf { it.isNotEmpty() }
 }
+
+private fun JsonObject.stringClaim(key: String): String? = this[key].stringValueOrNull()
+
+private fun JsonObject.numericDateClaim(key: String): Long? = (this[key] as? JsonPrimitive)?.longOrNull
+
+private fun JsonObject.audienceClaim(): Set<String>? {
+    val element = this["aud"] ?: return null
+    return when (element) {
+        is JsonPrimitive -> element.stringValueOrNull()?.let { setOf(it) } ?: emptySet()
+        is JsonArray -> element.mapNotNull { it.stringValueOrNull() }.toSet()
+        else -> emptySet()
+    }
+}
+
+private fun JsonObject.oauthScopes(): Set<String> = scopeStrings("scope") + scopeStrings("scp")
+
+private fun JsonObject.scopeStrings(key: String): Set<String> {
+    val element = this[key] ?: return emptySet()
+    return when (element) {
+        is JsonPrimitive -> element.stringValueOrNull().scopeSet()
+        is JsonArray -> element.mapNotNull { it.stringValueOrNull() }.toSet()
+        else -> emptySet()
+    }
+}
+
+private fun JsonElement?.stringValueOrNull(): String? = (this as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+private fun String?.scopeSet(): Set<String> = this?.trim()
+    ?.split(Regex("\\s+"))
+    ?.filter { it.isNotEmpty() }
+    ?.toSet()
+    ?: emptySet()

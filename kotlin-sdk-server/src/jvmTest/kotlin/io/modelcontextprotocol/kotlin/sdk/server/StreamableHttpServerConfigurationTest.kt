@@ -16,9 +16,12 @@ import io.ktor.server.testing.testApplication
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.putJsonArray
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -344,6 +347,145 @@ class StreamableHttpServerConfigurationTest {
                     """scope="tools:call resources:read", error="insufficient_scope"""",
                 response.headers[HttpHeaders.WWWAuthenticate],
             )
+        }
+    }
+
+    @Test
+    fun `validateMcpOAuthJwtClaims accepts matching audience and returns scopes`() {
+        val claims = jwtClaims(
+            audience = listOf("https://other.example.com", "https://mcp.example.com/mcp"),
+            scope = "tools:call resources:read",
+            scp = listOf("prompts:read"),
+        )
+
+        val result = validateMcpOAuthJwtClaims(
+            claims = claims,
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            issuer = "https://auth.example.com",
+            clockSkewSeconds = 0,
+        )
+
+        assertEquals(
+            McpOAuthBearerTokenValidationResult.Valid(
+                scopes = setOf("tools:call", "resources:read", "prompts:read"),
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `validateMcpOAuthJwtClaims accepts string audience`() {
+        val claims = jwtClaims(audience = "https://mcp.example.com/mcp")
+
+        val result = validateMcpOAuthJwtClaims(
+            claims = claims,
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            issuer = "https://auth.example.com",
+            clockSkewSeconds = 0,
+        )
+
+        assertEquals(McpOAuthBearerTokenValidationResult.Valid(), result)
+    }
+
+    @Test
+    fun `validateMcpOAuthJwtClaims rejects wrong issuer`() {
+        val result = validateMcpOAuthJwtClaims(
+            claims = jwtClaims(),
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            issuer = "https://other-auth.example.com",
+        )
+
+        assertEquals(
+            McpOAuthBearerTokenValidationResult.Invalid(
+                error = "invalid_token",
+                errorDescription = "token issuer does not match",
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `validateMcpOAuthJwtClaims rejects missing or wrong audience`() {
+        val missingAudience = validateMcpOAuthJwtClaims(
+            claims = buildJsonObject {
+                put("iss", JsonPrimitive("https://auth.example.com"))
+                put("exp", JsonPrimitive(1_100))
+            },
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            issuer = "https://auth.example.com",
+        )
+        val wrongAudience = validateMcpOAuthJwtClaims(
+            claims = jwtClaims(audience = "https://other.example.com"),
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            issuer = "https://auth.example.com",
+        )
+
+        val expected = McpOAuthBearerTokenValidationResult.Invalid(
+            error = "invalid_token",
+            errorDescription = "token audience does not include MCP resource",
+        )
+        assertEquals(expected, missingAudience)
+        assertEquals(expected, wrongAudience)
+    }
+
+    @Test
+    fun `validateMcpOAuthJwtClaims rejects expired and not-yet-valid tokens`() {
+        val expired = validateMcpOAuthJwtClaims(
+            claims = jwtClaims(expiresAt = 999),
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            clockSkewSeconds = 0,
+        )
+        val notYetValid = validateMcpOAuthJwtClaims(
+            claims = jwtClaims(notBefore = 1_061),
+            resource = "https://mcp.example.com/mcp",
+            currentEpochSeconds = 1_000,
+            clockSkewSeconds = 60,
+        )
+
+        assertEquals(
+            McpOAuthBearerTokenValidationResult.Invalid(
+                error = "invalid_token",
+                errorDescription = "token is expired",
+            ),
+            expired,
+        )
+        assertEquals(
+            McpOAuthBearerTokenValidationResult.Invalid(
+                error = "invalid_token",
+                errorDescription = "token is not yet valid",
+            ),
+            notYetValid,
+        )
+    }
+
+    private fun jwtClaims(
+        audience: Any = "https://mcp.example.com/mcp",
+        expiresAt: Long = 1_100,
+        notBefore: Long? = null,
+        scope: String? = null,
+        scp: List<String> = emptyList(),
+    ) = buildJsonObject {
+        put("iss", JsonPrimitive("https://auth.example.com"))
+        when (audience) {
+            is String -> put("aud", JsonPrimitive(audience))
+
+            is List<*> -> putJsonArray("aud") {
+                audience.forEach { add(JsonPrimitive(it as String)) }
+            }
+        }
+        put("exp", JsonPrimitive(expiresAt))
+        notBefore?.let { put("nbf", JsonPrimitive(it)) }
+        scope?.let { put("scope", JsonPrimitive(it)) }
+        if (scp.isNotEmpty()) {
+            putJsonArray("scp") {
+                scp.forEach { add(JsonPrimitive(it)) }
+            }
         }
     }
 }

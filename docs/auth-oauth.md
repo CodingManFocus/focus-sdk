@@ -384,9 +384,10 @@ if (stepUpScope != null) {
 
 The Kotlin SDK exposes helpers for the MCP-specific resource-server pieces:
 serving OAuth Protected Resource Metadata, returning spec-shaped Bearer
-challenges, and guarding Ktor route handlers. Token signature, issuer,
-audience, expiry, and claim validation remain application or reverse-proxy
-responsibilities.
+challenges, guarding Ktor route handlers, and validating common JWT access-token
+claims after cryptographic verification. Token signature verification, JWKS key
+selection, issuer trust policy, and token introspection remain application or
+reverse-proxy responsibilities.
 
 Register the Protected Resource Metadata endpoint alongside the MCP route:
 
@@ -414,6 +415,7 @@ import io.ktor.server.routing.get
 import io.modelcontextprotocol.kotlin.sdk.server.McpOAuthBearerTokenValidationResult
 import io.modelcontextprotocol.kotlin.sdk.server.McpOAuthBearerTokenValidator
 import io.modelcontextprotocol.kotlin.sdk.server.requireMcpOAuthBearer
+import io.modelcontextprotocol.kotlin.sdk.server.validateMcpOAuthJwtClaims
 
 val resourceMetadataUrl =
     "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
@@ -437,10 +439,23 @@ suspend fun validateAccessTokenForMcpResource(
     call: io.ktor.server.application.ApplicationCall,
     token: String,
 ): McpOAuthBearerTokenValidationResult {
-    // Verify signature, issuer, audience, expiry, and claims here.
-    return McpOAuthBearerTokenValidationResult.Valid(scopes = setOf("tools:call"))
+    // First verify the JWT signature and select the right JWKS key here.
+    val verifiedClaims: kotlinx.serialization.json.JsonObject =
+        verifyJwtAndReturnClaims(token)
+
+    return validateMcpOAuthJwtClaims(
+        claims = verifiedClaims,
+        resource = "https://mcp.example.com/mcp",
+        currentEpochSeconds = currentEpochSeconds(),
+        issuer = "https://auth.example.com",
+    )
 }
 ```
+
+`validateMcpOAuthJwtClaims` checks the verified JWT's `iss`, `aud`, `exp`,
+`nbf`, and `iat` claims with configurable clock skew and returns scopes from
+`scope` and `scp` claims. It intentionally does not parse compact JWTs, verify
+signatures, fetch JWKS documents, or decide whether an issuer is trusted.
 
 For lower-level Ktor middleware or custom guards, use the response helpers for
 authorization failures:

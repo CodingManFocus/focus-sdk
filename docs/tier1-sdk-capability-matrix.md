@@ -72,7 +72,7 @@ Status legend:
 | Roots | Ready | Client root registry and roots/list_changed notification; server `listRoots`; README example. | Add security guidance for root grants. |
 | Sampling | Ready | Server `createMessage`; client sampling handler and sampling-tools validation; README example. | Add a dedicated sampling-with-tools guide. |
 | Elicitation | Partial | Client/server surfaces include form and URL-mode elicitation and completion notification; README example covers both modes at a high level. | Add dedicated form-mode and URL-mode guides with security constraints. |
-| Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, Client ID Metadata Document JSON generation, dynamic client registration, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, expiry-aware token snapshot/restore helpers, bearer request helpers, client credentials token exchange, `private_key_jwt` assertion requests, JVM RS256 assertion signing, and Ktor bearer providers. Server helpers cover Protected Resource Metadata endpoints, Bearer challenge responses, and request-level bearer guards. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add non-JVM JWT assertion signing guidance and full JWT/JWKS validation examples. |
+| Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, Client ID Metadata Document JSON generation, dynamic client registration, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, expiry-aware token snapshot/restore helpers, bearer request helpers, client credentials token exchange, `private_key_jwt` assertion requests, JVM RS256 assertion signing, and Ktor bearer providers. Server helpers cover Protected Resource Metadata endpoints, Bearer challenge responses, request-level bearer guards, and verified JWT claims validation. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation examples. |
 | Streamable HTTP transport | Partial | Client and server transports support protocol headers, JSON/SSE responses, session handling, resumability hooks, retry handling, DNS rebinding controls, and request-size limits. | Add a resumability guide and keep conformance coverage current. |
 | Stdio transport | Ready | Client/server stdio transports and tests; README examples. | Keep lifecycle/error-handling tests current. |
 | SSE compatibility transport | Ready | Client/server SSE transports remain available for older MCP clients; README marks Streamable HTTP as preferred. | Keep compatibility docs clear and avoid positioning SSE as preferred for new work. |
@@ -88,8 +88,8 @@ Status legend:
 ## Priority Slices
 
 1. Auth/OAuth parity:
-   add non-JVM JWT assertion signing guidance and full JWT/JWKS validation
-   examples.
+   add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
+   validation examples.
 2. Streamable HTTP guide:
    document stateful/stateless modes, JSON vs SSE responses, resumability,
    retry, session lifecycle, protocol-version headers, DNS rebinding, and body
