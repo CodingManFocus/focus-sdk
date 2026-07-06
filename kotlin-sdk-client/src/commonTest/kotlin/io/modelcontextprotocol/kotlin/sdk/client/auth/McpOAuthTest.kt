@@ -124,6 +124,16 @@ class McpOAuthTest {
             selectMcpOAuthTokenEndpointAuthMethod(metadata, clientSecret = null),
         )
         assertEquals(
+            McpOAuthTokenEndpointAuthMethod.None,
+            selectMcpOAuthTokenEndpointAuthMethod(
+                OAuthAuthorizationServerMetadata(
+                    tokenEndpointAuthMethodsSupported = listOf("none"),
+                    raw = buildJsonObject {},
+                ),
+                clientSecret = "secret",
+            ),
+        )
+        assertEquals(
             McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
             selectMcpOAuthTokenEndpointAuthMethod(
                 OAuthAuthorizationServerMetadata(raw = buildJsonObject {}),

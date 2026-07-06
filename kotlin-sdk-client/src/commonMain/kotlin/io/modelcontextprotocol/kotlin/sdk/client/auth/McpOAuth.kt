@@ -263,6 +263,7 @@ public fun selectMcpOAuthTokenEndpointAuthMethod(
         methods.filter { it == McpOAuthTokenEndpointAuthMethod.None }
     } else {
         methods.filter { it != McpOAuthTokenEndpointAuthMethod.None }
+            .ifEmpty { methods.filter { it == McpOAuthTokenEndpointAuthMethod.None } }
     }
     return usableMethods.firstOrNull()
         ?: throw McpOAuthException(

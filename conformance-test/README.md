@@ -106,8 +106,10 @@ Tests the conformance server against all server scenarios:
 14 OAuth Authorization Code scenarios + 2 Client Credentials scenarios (`jwt`, `basic`) + 1 Cross-App Access scenario = 17 total.
 
 > [!NOTE]
-> Auth scenarios are implemented using Ktor's `HttpClient` plugins (`HttpSend` interceptor,
-> `ktor-client-auth`) as a standalone OAuth client. They do not use the SDK's built-in auth support.
+> Authorization Code scenarios exercise the SDK's reusable auth helpers for PKCE,
+> authorization request construction, token exchange, scope selection, and bearer
+> headers. Client Credentials and Cross-App Access scenarios still use dedicated
+> conformance-only token flows.
 
 ## Known SDK Limitations
 

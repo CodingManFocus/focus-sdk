@@ -1,45 +1,10 @@
 package io.modelcontextprotocol.kotlin.sdk.conformance.auth
 
 import io.ktor.client.HttpClient
-import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.Parameters
-import io.ktor.http.isSuccess
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.net.URI
-import java.net.URLEncoder
-import java.util.Base64
-
-internal fun buildAuthorizationUrl(
-    authEndpoint: String,
-    clientId: String,
-    redirectUri: String,
-    codeChallenge: String,
-    scope: String?,
-    resource: String?,
-    state: String,
-): String {
-    val params = buildString {
-        append("response_type=code")
-        append("&client_id=${URLEncoder.encode(clientId, "UTF-8")}")
-        append("&redirect_uri=${URLEncoder.encode(redirectUri, "UTF-8")}")
-        append("&code_challenge=${URLEncoder.encode(codeChallenge, "UTF-8")}")
-        append("&code_challenge_method=S256")
-        append("&state=${URLEncoder.encode(state, "UTF-8")}")
-        if (scope != null) {
-            append("&scope=${URLEncoder.encode(scope, "UTF-8")}")
-        }
-        if (resource != null) {
-            append("&resource=${URLEncoder.encode(resource, "UTF-8")}")
-        }
-    }
-    return if (authEndpoint.contains("?")) "$authEndpoint&$params" else "$authEndpoint?$params"
-}
 
 internal suspend fun followAuthorizationRedirect(
     httpClient: HttpClient,
@@ -76,99 +41,4 @@ internal suspend fun followAuthorizationRedirect(
     }
 
     error("Expected redirect from auth endpoint, got ${response.status}")
-}
-
-internal suspend fun exchangeCodeForTokens(
-    httpClient: HttpClient,
-    tokenEndpoint: String,
-    code: String,
-    clientId: String,
-    clientSecret: String?,
-    redirectUri: String,
-    codeVerifier: String,
-    tokenAuthMethod: String,
-    resource: String?,
-): String {
-    val response = when (tokenAuthMethod) {
-        "client_secret_basic" -> {
-            val basicAuth = Base64.getEncoder()
-                .encodeToString("$clientId:${clientSecret ?: ""}".toByteArray())
-            httpClient.submitForm(
-                url = tokenEndpoint,
-                formParameters = Parameters.build {
-                    append("grant_type", "authorization_code")
-                    append("code", code)
-                    append("redirect_uri", redirectUri)
-                    append("code_verifier", codeVerifier)
-                    if (resource != null) {
-                        append("resource", resource)
-                    }
-                },
-            ) {
-                header(HttpHeaders.Authorization, "Basic $basicAuth")
-            }
-        }
-
-        "none" -> {
-            httpClient.submitForm(
-                url = tokenEndpoint,
-                formParameters = Parameters.build {
-                    append("grant_type", "authorization_code")
-                    append("code", code)
-                    append("client_id", clientId)
-                    append("redirect_uri", redirectUri)
-                    append("code_verifier", codeVerifier)
-                    if (resource != null) {
-                        append("resource", resource)
-                    }
-                },
-            )
-        }
-
-        else -> {
-            // client_secret_post (default)
-            httpClient.submitForm(
-                url = tokenEndpoint,
-                formParameters = Parameters.build {
-                    append("grant_type", "authorization_code")
-                    append("code", code)
-                    append("client_id", clientId)
-                    if (clientSecret != null) {
-                        append("client_secret", clientSecret)
-                    }
-                    append("redirect_uri", redirectUri)
-                    append("code_verifier", codeVerifier)
-                    if (resource != null) {
-                        append("resource", resource)
-                    }
-                },
-            )
-        }
-    }
-
-    // Check HTTP status
-    if (!response.status.isSuccess()) {
-        val body = response.bodyAsText()
-        val errorDetail = try {
-            val obj = json.parseToJsonElement(body).jsonObject
-            val err = obj["error"]?.jsonPrimitive?.content ?: "unknown"
-            val desc = obj["error_description"]?.jsonPrimitive?.content
-            if (desc != null) "$err: $desc" else err
-        } catch (_: Exception) {
-            body
-        }
-        error("Token exchange failed (${response.status}): $errorDetail")
-    }
-
-    val tokenJson = json.parseToJsonElement(response.bodyAsText()).jsonObject
-
-    // Check for error field in response body (some servers return 200 with error)
-    val errorField = tokenJson["error"]?.jsonPrimitive?.content
-    if (errorField != null) {
-        val desc = tokenJson["error_description"]?.jsonPrimitive?.content
-        error("Token exchange error: $errorField${if (desc != null) " - $desc" else ""}")
-    }
-
-    return tokenJson["access_token"]?.jsonPrimitive?.content
-        ?: error("No access_token in token response")
 }

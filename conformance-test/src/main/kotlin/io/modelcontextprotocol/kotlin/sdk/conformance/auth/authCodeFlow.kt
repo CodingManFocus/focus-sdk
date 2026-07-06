@@ -10,12 +10,28 @@ import io.ktor.http.HttpStatusCode
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.ClientOptions
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeTokenRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
+import io.modelcontextprotocol.kotlin.sdk.client.auth.OAuthAuthorizationServerMetadata
+import io.modelcontextprotocol.kotlin.sdk.client.auth.buildMcpOAuthAuthorizationUrl
+import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpBearerAuth
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStepUpScope
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
+import io.modelcontextprotocol.kotlin.sdk.client.auth.requireMcpPkceS256Support
+import io.modelcontextprotocol.kotlin.sdk.client.auth.selectMcpOAuthScope
+import io.modelcontextprotocol.kotlin.sdk.client.auth.selectMcpOAuthTokenEndpointAuthMethod
+import io.modelcontextprotocol.kotlin.sdk.client.auth.wwwAuthenticateParameter
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import java.security.SecureRandom
 import java.util.UUID
 
 internal suspend fun runAuthClient(serverUrl: String) {
@@ -32,10 +48,7 @@ internal suspend fun runAuthClient(serverUrl: String) {
 
     httpClient.plugin(HttpSend).intercept { request ->
         // Add existing token if available
-        if (accessToken != null) {
-            request.headers.remove(HttpHeaders.Authorization)
-            request.headers.append(HttpHeaders.Authorization, "Bearer $accessToken")
-        }
+        accessToken?.let { mcpBearerAuth(it)(request) }
 
         val response = execute(request)
         val status = response.response.status
@@ -43,7 +56,7 @@ internal suspend fun runAuthClient(serverUrl: String) {
         // Determine if we need to (re-)authorize
         val needsAuth = status == HttpStatusCode.Unauthorized
         val wwwAuth = response.response.headers[HttpHeaders.WWWAuthenticate] ?: ""
-        val stepUpScope = if (status == HttpStatusCode.Forbidden) parseStepUpScope(wwwAuth) else null
+        val stepUpScope = if (status == HttpStatusCode.Forbidden) mcpOAuthStepUpScope(wwwAuth) else null
         val needsStepUp = stepUpScope != null
 
         if ((needsAuth || needsStepUp) && authAttempts < 3) {
@@ -51,7 +64,7 @@ internal suspend fun runAuthClient(serverUrl: String) {
 
             // Discover metadata (cache across retries)
             if (cachedDiscovery == null) {
-                val resourceMetadataUrl = extractParam(wwwAuth, "resource_metadata")
+                val resourceMetadataUrl = wwwAuthenticateParameter(wwwAuth, "resource_metadata")
                 cachedDiscovery = discoverOAuthMetadata(httpClient, serverUrl, resourceMetadataUrl)
             }
             val discovery: DiscoveryResult = cachedDiscovery
@@ -68,24 +81,19 @@ internal suspend fun runAuthClient(serverUrl: String) {
                 }
             }
 
-            val metadata = discovery.asMetadata
+            val metadata = discovery.asMetadata.toOAuthAuthorizationServerMetadata()
 
-            val authEndpoint = metadata["authorization_endpoint"]?.jsonPrimitive?.content
+            val authEndpoint = metadata.authorizationEndpoint
                 ?: error("No authorization_endpoint in metadata")
-            val tokenEndpoint = metadata["token_endpoint"]?.jsonPrimitive?.content
+            val tokenEndpoint = metadata.tokenEndpoint
                 ?: error("No token_endpoint in metadata")
 
-            val tokenEndpointAuthMethods = metadata["token_endpoint_auth_methods_supported"]
-                ?.jsonArray?.map { it.jsonPrimitive.content }
-                ?: listOf("client_secret_post")
-            val tokenAuthMethod = tokenEndpointAuthMethods.firstOrNull() ?: "client_secret_post"
-
             // Verify PKCE support
-            verifyPkceSupport(metadata)
+            requireMcpPkceS256Support(metadata)
 
             // Resolve client credentials (cache across retries)
             if (cachedCredentials == null) {
-                cachedCredentials = resolveClientCredentials(httpClient, metadata)
+                cachedCredentials = resolveClientCredentials(httpClient, discovery.asMetadata)
             }
             val creds: ClientCredentials = cachedCredentials
 
@@ -93,47 +101,56 @@ internal suspend fun runAuthClient(serverUrl: String) {
             val scope = if (needsStepUp) {
                 stepUpScope
             } else {
-                val wwwAuthScope = extractParam(wwwAuth, "scope")
-                selectScope(wwwAuthScope, discovery.scopesSupported)
+                val wwwAuthScope = wwwAuthenticateParameter(wwwAuth, "scope")
+                selectMcpOAuthScope(wwwAuthScope, discovery.scopesSupported)
             }
 
             // PKCE
-            val codeVerifier = generateCodeVerifier()
-            val codeChallenge = generateCodeChallenge(codeVerifier)
+            val pkce = mcpPkceS256(secureRandomBytes(32))
 
             // CSRF state parameter
             val state = UUID.randomUUID().toString()
 
             // Build authorization URL
-            val authUrl = buildAuthorizationUrl(
-                authEndpoint,
-                creds.clientId,
-                CALLBACK_URL,
-                codeChallenge,
-                scope,
-                discovery.resourceUrl,
-                state,
+            val resource = discovery.resourceUrl ?: serverUrl.trimEnd('/')
+            val authUrl = buildMcpOAuthAuthorizationUrl(
+                McpOAuthAuthorizationRequest(
+                    authorizationEndpoint = authEndpoint,
+                    clientId = creds.clientId,
+                    redirectUri = CALLBACK_URL,
+                    codeChallenge = pkce.codeChallenge,
+                    resource = resource,
+                    scope = scope,
+                    state = state,
+                ),
             )
 
             // Follow the authorization redirect to get auth code
             val authCode = followAuthorizationRedirect(httpClient, authUrl, CALLBACK_URL, state)
 
             // Exchange code for tokens
-            accessToken = exchangeCodeForTokens(
+            val tokenResponse = exchangeMcpOAuthAuthorizationCode(
                 httpClient,
-                tokenEndpoint,
-                authCode,
-                creds.clientId,
-                creds.clientSecret,
-                CALLBACK_URL,
-                codeVerifier,
-                tokenAuthMethod,
-                discovery.resourceUrl,
+                McpOAuthAuthorizationCodeTokenRequest(
+                    tokenEndpoint = tokenEndpoint,
+                    code = authCode,
+                    redirectUri = CALLBACK_URL,
+                    codeVerifier = pkce.codeVerifier,
+                    resource = resource,
+                    clientCredentials = McpOAuthClientCredentials(
+                        clientId = creds.clientId,
+                        clientSecret = creds.clientSecret,
+                    ),
+                    tokenEndpointAuthMethod = selectMcpOAuthTokenEndpointAuthMethod(
+                        metadata = metadata,
+                        clientSecret = creds.clientSecret,
+                    ),
+                ),
             )
+            accessToken = tokenResponse.accessToken
 
             // Retry the original request with the token
-            request.headers.remove(HttpHeaders.Authorization)
-            request.headers.append(HttpHeaders.Authorization, "Bearer $accessToken")
+            mcpBearerAuth(tokenResponse.accessToken)(request)
             execute(request)
         } else {
             response
@@ -152,3 +169,28 @@ internal suspend fun runAuthClient(serverUrl: String) {
         mcpClient.close()
     }
 }
+
+private fun secureRandomBytes(size: Int): ByteArray {
+    val bytes = ByteArray(size)
+    SecureRandom().nextBytes(bytes)
+    return bytes
+}
+
+private fun JsonObject.toOAuthAuthorizationServerMetadata(): OAuthAuthorizationServerMetadata =
+    OAuthAuthorizationServerMetadata(
+        issuer = stringOrNull("issuer"),
+        authorizationEndpoint = stringOrNull("authorization_endpoint"),
+        tokenEndpoint = stringOrNull("token_endpoint"),
+        registrationEndpoint = stringOrNull("registration_endpoint"),
+        tokenEndpointAuthMethodsSupported = stringListOrNull("token_endpoint_auth_methods_supported"),
+        codeChallengeMethodsSupported = stringListOrNull("code_challenge_methods_supported"),
+        clientIdMetadataDocumentSupported = booleanOrNull("client_id_metadata_document_supported"),
+        raw = this,
+    )
+
+private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.content
+
+private fun JsonObject.booleanOrNull(key: String): Boolean? = this[key]?.jsonPrimitive?.booleanOrNull
+
+private fun JsonObject.stringListOrNull(key: String): List<String>? =
+    this[key]?.jsonArray?.map { it.jsonPrimitive.content }
