@@ -19,6 +19,7 @@ Official references:
 - SDK listing: https://modelcontextprotocol.io/docs/sdk
 - Latest stable schema reference: https://modelcontextprotocol.io/specification/2025-11-25/schema
 - Latest stable transports: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
+- Tier 1 SDK capability matrix: `docs/tier1-sdk-capability-matrix.md`
 
 ## Tier 1 Acceptance Criteria
 
@@ -90,6 +91,9 @@ Strong signals already present:
 - `docs/compatibility-and-release-policy.md` defines supported MCP protocol
   versions, API compatibility expectations, release note contents, validation
   gates, and the `1.0.0` graduation requirement for Tier 1.
+- `docs/tier1-sdk-capability-matrix.md` records the TypeScript, Python, C#,
+  and Go SDK signals being used as the Tier 1 model and maps them to Kotlin
+  implementation status.
 
 Known gaps and risks:
 
@@ -105,6 +109,8 @@ Known gaps and risks:
   SDK OAuth flow still needs end-to-end transport integration.
 - Feature docs are not yet comprehensive for auth, URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
+- Maintenance evidence for standardized issue labels or GitHub issue types,
+  triage SLA, and critical bug SLA still needs to be documented or verified.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
   SDK explicitly claims production support for the extension.
 - The conformance README must stay synchronized with
@@ -141,6 +147,8 @@ Known gaps and risks:
 - Add feature examples for elicitation, URL-mode elicitation, sampling with
   tools, auth/OAuth, Streamable HTTP resumability, and security-sensitive host
   validation.
+- Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
+  and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1
   blocking checklist.
 - Keep compatibility notes current for supported MCP spec versions.

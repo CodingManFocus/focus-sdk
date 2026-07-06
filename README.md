@@ -973,6 +973,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 - [Conformance status](./docs/conformance-status.md)
+- [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)
 - [Dependency update policy](./docs/dependency-update-policy.md)
 - [Tier 1 readiness roadmap](./docs/tier1-readiness.md)
