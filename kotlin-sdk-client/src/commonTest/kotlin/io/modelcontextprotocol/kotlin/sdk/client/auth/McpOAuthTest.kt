@@ -572,6 +572,41 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should refresh bearer token and retry unauthorized request`() = runTest {
+        val seenAuthorizationHeaders = mutableListOf<String?>()
+        val tokenStore = McpOAuthTokenStore(
+            McpOAuthTokenResponse(
+                accessToken = "expired-token",
+                refreshToken = "refresh-token",
+                raw = buildJsonObject {},
+            ),
+        )
+        val client = HttpClient(
+            MockEngine { request ->
+                seenAuthorizationHeaders += request.headers[HttpHeaders.Authorization]
+                when (request.headers[HttpHeaders.Authorization]) {
+                    "Bearer expired-token" -> respond("", status = HttpStatusCode.Unauthorized)
+                    "Bearer fresh-token" -> respond("ok")
+                    else -> error("Unexpected Authorization header: ${request.headers[HttpHeaders.Authorization]}")
+                }
+            },
+        )
+        client.installMcpOAuthBearerAuth(tokenStore) { refreshToken ->
+            assertEquals("refresh-token", refreshToken)
+            McpOAuthTokenResponse(
+                accessToken = "fresh-token",
+                raw = buildJsonObject {},
+            )
+        }
+
+        client.get("https://mcp.example.com/mcp")
+
+        assertEquals(listOf<String?>("Bearer expired-token", "Bearer fresh-token"), seenAuthorizationHeaders)
+        assertEquals("fresh-token", tokenStore.accessToken)
+        assertEquals("refresh-token", tokenStore.refreshToken)
+    }
+
+    @Test
     fun `should fail when metadata cannot be discovered`() = runTest {
         val client = HttpClient(
             MockEngine {

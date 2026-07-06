@@ -232,6 +232,7 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthKt {
 	public static final fun discoverMcpProtectedResourceMetadata (Lio/ktor/client/HttpClient;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun discoverMcpProtectedResourceMetadata$default (Lio/ktor/client/HttpClient;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static final fun exchangeMcpOAuthAuthorizationCode (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCodeTokenRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun installMcpOAuthBearerAuth (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore;Lkotlin/jvm/functions/Function2;)V
 	public static final fun mcpAuthorizationServerMetadataUrls (Ljava/lang/String;)Ljava/util/List;
 	public static final fun mcpBearerAuth (Ljava/lang/String;)Lkotlin/jvm/functions/Function1;
 	public static final fun mcpBearerAuth (Lkotlin/jvm/functions/Function0;)Lkotlin/jvm/functions/Function1;
@@ -318,6 +319,13 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenR
 	public final fun getTokenType ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore {
+	public fun <init> (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;)V
+	public final fun getAccessToken ()Ljava/lang/String;
+	public final fun getRefreshToken ()Ljava/lang/String;
+	public final fun update (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;)V
 }
 
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/OAuthAuthorizationServerMetadata {

@@ -1,6 +1,8 @@
 package io.modelcontextprotocol.kotlin.sdk.client.auth
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.plugin
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
@@ -8,6 +10,7 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
@@ -180,6 +183,25 @@ public data class McpOAuthTokenResponse(
     public val scope: String? = null,
     public val raw: JsonObject,
 )
+
+/**
+ * Mutable OAuth token state for long-lived MCP HTTP transports.
+ *
+ * The refresh token is retained when an update response omits a replacement
+ * refresh token, matching common OAuth refresh-token rotation behavior.
+ */
+public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
+    public var accessToken: String = initialTokens.accessToken
+        private set
+
+    public var refreshToken: String? = initialTokens.refreshToken
+        private set
+
+    public fun update(tokens: McpOAuthTokenResponse) {
+        accessToken = tokens.accessToken
+        refreshToken = tokens.refreshToken ?: refreshToken
+    }
+}
 
 /**
  * Returns the canonical origin for [url], excluding the default port.
@@ -488,6 +510,34 @@ public fun mcpBearerAuth(accessToken: String): HttpRequestBuilder.() -> Unit = m
 public fun mcpBearerAuth(accessTokenProvider: () -> String): HttpRequestBuilder.() -> Unit = {
     headers.remove(HttpHeaders.Authorization)
     headers.append(HttpHeaders.Authorization, "Bearer ${accessTokenProvider()}")
+}
+
+/**
+ * Installs bearer authentication for an MCP HTTP client and refreshes once on `401 Unauthorized`.
+ *
+ * This is intended for the Ktor [HttpClient] used by HTTP-based MCP transports. The [refresh]
+ * callback should use the stored refresh token to obtain a new access token, usually by calling
+ * [refreshMcpOAuthAccessToken] with a client that does not send MCP resource-server bearer tokens
+ * to the authorization server. If no refresh token is available, the original 401 response is
+ * returned without retrying.
+ */
+public fun HttpClient.installMcpOAuthBearerAuth(
+    tokenStore: McpOAuthTokenStore,
+    refresh: suspend (refreshToken: String) -> McpOAuthTokenResponse,
+) {
+    plugin(HttpSend).intercept { request ->
+        mcpBearerAuth { tokenStore.accessToken }(request)
+        val response = execute(request)
+        if (response.response.status != HttpStatusCode.Unauthorized) {
+            return@intercept response
+        }
+
+        val refreshToken = tokenStore.refreshToken ?: return@intercept response
+        tokenStore.update(refresh(refreshToken))
+
+        mcpBearerAuth { tokenStore.accessToken }(request)
+        execute(request)
+    }
 }
 
 private suspend fun fetchFirstJsonObject(httpClient: HttpClient, urls: List<String>, description: String): JsonObject {
