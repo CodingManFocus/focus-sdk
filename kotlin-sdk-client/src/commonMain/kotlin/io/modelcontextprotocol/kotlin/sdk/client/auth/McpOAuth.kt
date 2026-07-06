@@ -290,6 +290,12 @@ public data class McpOAuthTokenResponse(
 )
 
 /**
+ * Returns the absolute expiry time for this response when [receivedAtEpochSeconds] is known.
+ */
+public fun McpOAuthTokenResponse.expiresAtEpochSeconds(receivedAtEpochSeconds: Long): Long? =
+    expiresIn?.let { receivedAtEpochSeconds + it }
+
+/**
  * Persistable OAuth token state that applications can write to an OS or service secret store.
  */
 public data class McpOAuthTokenStoreSnapshot(
@@ -297,6 +303,7 @@ public data class McpOAuthTokenStoreSnapshot(
     public val refreshToken: String? = null,
     public val tokenType: String? = null,
     public val expiresIn: Int? = null,
+    public val expiresAtEpochSeconds: Long? = null,
     public val scope: String? = null,
     public val raw: JsonObject = JsonObject(emptyMap()),
 ) {
@@ -308,6 +315,9 @@ public data class McpOAuthTokenStoreSnapshot(
         scope = scope,
         raw = raw,
     )
+
+    public fun shouldRefresh(currentEpochSeconds: Long, refreshSkewSeconds: Long = 60): Boolean =
+        expiresAtEpochSeconds?.let { currentEpochSeconds + refreshSkewSeconds >= it } ?: false
 }
 
 /**
@@ -319,8 +329,18 @@ public data class McpOAuthTokenStoreSnapshot(
 public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
     private var onUpdate: ((McpOAuthTokenStoreSnapshot) -> Unit)? = null
     private var currentTokens: McpOAuthTokenResponse = initialTokens
+    private var tokenExpiresAtEpochSeconds: Long? = null
 
-    public constructor(initialSnapshot: McpOAuthTokenStoreSnapshot) : this(initialSnapshot.toTokenResponse())
+    public constructor(initialSnapshot: McpOAuthTokenStoreSnapshot) : this(initialSnapshot.toTokenResponse()) {
+        tokenExpiresAtEpochSeconds = initialSnapshot.expiresAtEpochSeconds
+    }
+
+    public constructor(
+        initialTokens: McpOAuthTokenResponse,
+        receivedAtEpochSeconds: Long,
+    ) : this(initialTokens) {
+        tokenExpiresAtEpochSeconds = initialTokens.expiresAtEpochSeconds(receivedAtEpochSeconds)
+    }
 
     public constructor(
         initialTokens: McpOAuthTokenResponse,
@@ -332,7 +352,17 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
     public constructor(
         initialSnapshot: McpOAuthTokenStoreSnapshot,
         onUpdate: (McpOAuthTokenStoreSnapshot) -> Unit,
-    ) : this(initialSnapshot.toTokenResponse(), onUpdate)
+    ) : this(initialSnapshot) {
+        this.onUpdate = onUpdate
+    }
+
+    public constructor(
+        initialTokens: McpOAuthTokenResponse,
+        receivedAtEpochSeconds: Long,
+        onUpdate: (McpOAuthTokenStoreSnapshot) -> Unit,
+    ) : this(initialTokens, receivedAtEpochSeconds) {
+        this.onUpdate = onUpdate
+    }
 
     public var accessToken: String = initialTokens.accessToken
         private set
@@ -340,10 +370,25 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
     public var refreshToken: String? = initialTokens.refreshToken
         private set
 
+    public val expiresAtEpochSeconds: Long?
+        get() = tokenExpiresAtEpochSeconds
+
     public fun update(tokens: McpOAuthTokenResponse) {
+        updateTokens(tokens, receivedAtEpochSeconds = null)
+    }
+
+    public fun update(tokens: McpOAuthTokenResponse, receivedAtEpochSeconds: Long) {
+        updateTokens(tokens, receivedAtEpochSeconds)
+    }
+
+    public fun shouldRefresh(currentEpochSeconds: Long, refreshSkewSeconds: Long = 60): Boolean =
+        snapshot().shouldRefresh(currentEpochSeconds, refreshSkewSeconds)
+
+    private fun updateTokens(tokens: McpOAuthTokenResponse, receivedAtEpochSeconds: Long?) {
         currentTokens = tokens.copy(refreshToken = tokens.refreshToken ?: refreshToken)
-        accessToken = tokens.accessToken
+        accessToken = currentTokens.accessToken
         refreshToken = currentTokens.refreshToken
+        tokenExpiresAtEpochSeconds = receivedAtEpochSeconds?.let { currentTokens.expiresAtEpochSeconds(it) }
         onUpdate?.invoke(snapshot())
     }
 
@@ -352,6 +397,7 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
         refreshToken = refreshToken,
         tokenType = currentTokens.tokenType,
         expiresIn = currentTokens.expiresIn,
+        expiresAtEpochSeconds = tokenExpiresAtEpochSeconds,
         scope = currentTokens.scope,
         raw = currentTokens.raw,
     )

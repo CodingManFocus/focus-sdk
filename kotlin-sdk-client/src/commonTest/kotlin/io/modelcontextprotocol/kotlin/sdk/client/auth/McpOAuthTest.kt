@@ -991,7 +991,7 @@ class McpOAuthTest {
             },
         )
         val updates = mutableListOf<McpOAuthTokenStoreSnapshot>()
-        val tokenStore = McpOAuthTokenStore(initial, updates::add)
+        val tokenStore = McpOAuthTokenStore(initial, 1_000L, updates::add)
 
         tokenStore.update(
             McpOAuthTokenResponse(
@@ -1003,18 +1003,24 @@ class McpOAuthTest {
                     put("access_token", JsonPrimitive("access-2"))
                 },
             ),
+            receivedAtEpochSeconds = 1_200L,
         )
 
         val snapshot = tokenStore.snapshot()
         val restored = McpOAuthTokenStore(snapshot)
 
+        assertEquals(1_300L, initial.expiresAtEpochSeconds(1_000L))
         assertEquals("access-2", snapshot.accessToken)
         assertEquals("refresh-1", snapshot.refreshToken)
         assertEquals("Bearer", snapshot.tokenType)
         assertEquals(600, snapshot.expiresIn)
+        assertEquals(1_800L, snapshot.expiresAtEpochSeconds)
         assertEquals("tools:call resources:read", snapshot.scope)
         assertEquals("access-2", restored.accessToken)
         assertEquals("refresh-1", restored.refreshToken)
+        assertEquals(1_800L, restored.expiresAtEpochSeconds)
+        assertEquals(false, restored.shouldRefresh(currentEpochSeconds = 1_700L, refreshSkewSeconds = 60))
+        assertEquals(true, restored.shouldRefresh(currentEpochSeconds = 1_740L, refreshSkewSeconds = 60))
         assertEquals(listOf(snapshot), updates)
     }
 

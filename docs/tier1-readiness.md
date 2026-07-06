@@ -108,8 +108,8 @@ Known gaps and risks:
   primitives, client credentials token exchange/provider support,
   `private_key_jwt` assertion request support, JVM RS256 assertion signing,
   Client ID Metadata Document JSON generation, dynamic client registration
-  support, token snapshot/restore helpers, and dynamic Streamable HTTP
-  bearer-header coverage. Server auth now has Protected Resource Metadata,
+  support, expiry-aware token snapshot/restore helpers, and dynamic Streamable
+  HTTP bearer-header coverage. Server auth now has Protected Resource Metadata,
   Bearer challenge helpers, and request-level bearer guard helpers, but the
   full SDK OAuth flow still needs end-to-end transport integration.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but

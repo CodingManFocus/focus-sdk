@@ -288,13 +288,14 @@ fun saveTokenSnapshotToSecretStorage(snapshot: McpOAuthTokenStoreSnapshot) {
 fun tokenStoreFromSecretStorage(
     saved: McpOAuthTokenStoreSnapshot?,
     initialTokens: McpOAuthTokenResponse,
+    receivedAtEpochSeconds: Long,
 ): McpOAuthTokenStore =
     if (saved != null) {
         McpOAuthTokenStore(saved) { snapshot ->
             saveTokenSnapshotToSecretStorage(snapshot)
         }
     } else {
-        McpOAuthTokenStore(initialTokens) { snapshot ->
+        McpOAuthTokenStore(initialTokens, receivedAtEpochSeconds) { snapshot ->
             saveTokenSnapshotToSecretStorage(snapshot)
         }
     }
@@ -303,7 +304,9 @@ fun tokenStoreFromSecretStorage(
 Persist snapshots only in a secure store. Treat access tokens, refresh tokens,
 registration access tokens, and client secrets as credentials. For public
 clients, expect refresh-token rotation and persist the updated snapshot after
-each refresh.
+each refresh. Pass the epoch seconds when a token response was received if you
+want snapshots to include `expiresAtEpochSeconds`; restored stores can then use
+`shouldRefresh(currentEpochSeconds)` before sending requests.
 
 The helper below installs a Ktor `HttpSend` interceptor that:
 
