@@ -73,7 +73,7 @@ Status legend:
 | Sampling | Ready | Server `createMessage`; client sampling handler and sampling-tools validation; README example. | Add a dedicated sampling-with-tools guide. |
 | Elicitation | Partial | Client/server surfaces include form and URL-mode elicitation and completion notification; README example covers both modes at a high level. | Add dedicated form-mode and URL-mode guides with security constraints. |
 | Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, Client ID Metadata Document JSON generation, dynamic client registration, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, expiry-aware token snapshot/restore helpers, bearer request helpers, client credentials token exchange, `private_key_jwt` assertion requests, JVM RS256 assertion signing, and Ktor bearer providers. Server helpers cover Protected Resource Metadata endpoints, Bearer challenge responses, request-level bearer guards, and verified JWT claims validation. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation examples. |
-| Streamable HTTP transport | Partial | Client and server transports support protocol headers, JSON/SSE responses, session handling, resumability hooks, retry handling, DNS rebinding controls, and request-size limits. | Add a resumability guide and keep conformance coverage current. |
+| Streamable HTTP transport | Ready, keep fresh | Client and server transports support protocol headers, JSON/SSE responses, session handling, resumability hooks, retry handling, DNS rebinding controls, request-size limits, and `docs/streamable-http.md` guidance for deployment and security. | Keep conformance coverage current after transport changes. |
 | Stdio transport | Ready | Client/server stdio transports and tests; README examples. | Keep lifecycle/error-handling tests current. |
 | SSE compatibility transport | Ready | Client/server SSE transports remain available for older MCP clients; README marks Streamable HTTP as preferred. | Keep compatibility docs clear and avoid positioning SSE as preferred for new work. |
 | WebSocket transport | Ready, non-core | Client/server WebSocket transport exists; README documents it as useful behind WebSocket-friendly proxies. | Treat as additional Kotlin value, not a Tier 1 requirement. |
@@ -90,16 +90,12 @@ Status legend:
 1. Auth/OAuth parity:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
-2. Streamable HTTP guide:
-   document stateful/stateless modes, JSON vs SSE responses, resumability,
-   retry, session lifecycle, protocol-version headers, DNS rebinding, and body
-   limits.
-3. Elicitation and sampling guides:
+2. Elicitation and sampling guides:
    separate form-mode elicitation, URL-mode elicitation, sampling, and
    sampling-with-tools into focused examples.
-4. Maintenance evidence:
+3. Maintenance evidence:
    document issue labels or GitHub issue types, triage SLA, P0 handling, and
    critical bug resolution expectations.
-5. Release readiness:
+4. Release readiness:
    keep `apiCheck`, conformance output, dependency policy, release policy, and
    this matrix current before a `1.0.0` release candidate.

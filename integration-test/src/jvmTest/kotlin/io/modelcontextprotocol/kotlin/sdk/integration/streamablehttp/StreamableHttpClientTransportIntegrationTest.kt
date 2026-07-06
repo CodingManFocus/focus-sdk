@@ -45,6 +45,7 @@ import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.server.cio.CIO as ServerCIO
 
 private const val SESSION_ID_HEADER = "mcp-session-id"
+private const val PROTOCOL_VERSION_HEADER = "mcp-protocol-version"
 private const val HOST = "127.0.0.1"
 private const val MCP_PATH = "/mcp"
 
@@ -215,6 +216,59 @@ internal class StreamableHttpClientTransportIntegrationTest {
                     ?.split(",")
                     ?.map { it.trim() }
                     .orEmpty() shouldContain ContentType.Text.EventStream.toString()
+            }
+
+            client.close()
+        }
+    }
+
+    @Test
+    fun `client sends negotiated protocol version after initialization`(): Unit = runBlocking(Dispatchers.IO) {
+        val sessionId = "sid-protocol-version"
+        val protocolVersionHeader = CompletableDeferred<String?>()
+        runWithServer({
+            post(MCP_PATH) {
+                val body = call.receiveText()
+                val parsed = Json.parseToJsonElement(body).jsonObject
+                val method = parsed["method"]?.jsonPrimitive?.content
+                val idJson = parsed["id"]?.toString() ?: "null"
+                call.response.header(SESSION_ID_HEADER, sessionId)
+                when (method) {
+                    "initialize" -> call.respondText(
+                        text = jsonRpcResult(idJson, INITIALIZE_RESULT),
+                        contentType = ContentType.Application.Json,
+                        status = HttpStatusCode.OK,
+                    )
+
+                    "notifications/initialized" -> call.respond(HttpStatusCode.Accepted)
+
+                    "ping" -> {
+                        protocolVersionHeader.complete(call.request.header(PROTOCOL_VERSION_HEADER))
+                        call.respondText(
+                            text = jsonRpcResult(idJson, "{}"),
+                            contentType = ContentType.Application.Json,
+                            status = HttpStatusCode.OK,
+                        )
+                    }
+
+                    else -> call.respond(HttpStatusCode.NotFound)
+                }
+            }
+            get(MCP_PATH) {
+                call.respondText(
+                    text = "",
+                    contentType = ContentType.Text.EventStream,
+                    status = HttpStatusCode.MethodNotAllowed,
+                )
+            }
+        }) { url ->
+            val client = newClient()
+            client.connect(StreamableHttpClientTransport(client = newHttpClient(), url = url))
+
+            client.ping()
+
+            withTimeout(5_000) {
+                protocolVersionHeader.await() shouldBe "2025-03-26"
             }
 
             client.close()

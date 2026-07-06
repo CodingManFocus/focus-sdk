@@ -214,6 +214,7 @@ public open class Client(private val clientInfo: Implementation, options: Client
             serverCapabilities = result.capabilities
             serverVersion = result.serverInfo
             serverInstructions = result.instructions
+            (transport as? StreamableHttpClientTransport)?.protocolVersion = result.protocolVersion
 
             notification(InitializedNotification())
         } catch (error: Throwable) {
