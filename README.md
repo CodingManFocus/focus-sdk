@@ -72,9 +72,9 @@ This Kotlin SDK implements the MCP specification, making it easy to:
 
 ### Artifacts
 
-- `io.modelcontextprotocol:kotlin-sdk` – umbrella SDK (client + server APIs)
-- `io.modelcontextprotocol:kotlin-sdk-client` – client-only APIs
-- `io.modelcontextprotocol:kotlin-sdk-server` – server-only APIs
+- `io.modelcontextprotocol:kotlin-sdk` - umbrella SDK (client + server APIs)
+- `io.modelcontextprotocol:kotlin-sdk-client` - client-only APIs
+- `io.modelcontextprotocol:kotlin-sdk-server` - server-only APIs
 
 ### Gradle setup (JVM)
 
@@ -296,7 +296,7 @@ up front and then resolved lazily when a client asks for it, so your handlers st
 #### Prompts
 
 Prompts are user-controlled templates that clients discover via `prompts/list` and fetch with `prompts/get` when a user
-chooses one (think slash commands or saved flows). They’re best for repeatable, structured starters rather than ad-hoc
+chooses one (think slash commands or saved flows). They are best for repeatable, structured starters rather than ad-hoc
 model calls.
 
 <!--- INCLUDE
@@ -358,7 +358,7 @@ Use prompts for anything that deserves a template: bug triage questions, onboard
 #### Resources
 
 Resources are application-driven context that clients discover via `resources/list` or `resources/templates/list`, then
-fetch with `resources/read`. Register each one with a stable URI and return a `ReadResourceResult` when asked—contents
+fetch with `resources/read`. Register each one with a stable URI and return a `ReadResourceResult` when asked. Contents
 can be text or binary blobs.
 
 <!--- INCLUDE
@@ -409,9 +409,9 @@ server.addResource(
 
 <!--- KNIT example-server-resources-01.kt -->
 
-Resources can be static text, generated JSON, or blobs—anything the client can surface to the user or inject into the
+Resources can be static text, generated JSON, or blobs: anything the client can surface to the user or inject into the
 model context. Set `subscribe = true` if you emit `notifications/resources/updated` for changes to specific URIs, and
-`listChanged = true` if you’ll send `notifications/resources/list_changed` when the catalog itself changes.
+`listChanged = true` if you'll send `notifications/resources/list_changed` when the catalog itself changes.
 
 #### Tools
 
@@ -459,8 +459,8 @@ server.addTool(
 
 <!--- KNIT example-server-tools-01.kt -->
 
-Register as many tools as you need—long-running jobs can report progress via the request context, and tools can also
-trigger sampling (see below) when they need the client’s LLM. Set `listChanged = true` only if your tool catalog can
+Register as many tools as you need. Long-running jobs can report progress via the request context, and tools can also
+trigger sampling (see below) when they need the client's LLM. Set `listChanged = true` only if your tool catalog can
 change at runtime and your server will emit `notifications/tools/list_changed` when it does.
 
 #### Completion
@@ -528,7 +528,7 @@ Use `context.arguments` to refine suggestions for dependent fields (e.g., framew
 
 #### Logging
 
-Logging lets the server stream structured log notifications to the client using RFC 5424 levels (`debug` → `emergency`).
+Logging lets the server stream structured log notifications to the client using RFC 5424 levels (`debug` to `emergency`).
 Declare the `logging` capability; clients can raise the minimum level with `logging/setLevel`, and the server emits
 `notifications/message` with severity, optional logger name, and JSON data.
 
@@ -590,7 +590,7 @@ Keep logs free of sensitive data, and expect clients to surface them in their ow
 
 List operations return paginated results with an opaque `nextCursor`, clients echo that cursor to fetch the next page.
 Supported list calls: `resources/list`, `resources/templates/list`, `prompts/list`, and `tools/list`.
-Treat cursors as opaque—don’t parse or persist them across sessions.
+Treat cursors as opaque. Do not parse or persist them across sessions.
 
 <!--- INCLUDE
 import io.modelcontextprotocol.kotlin.sdk.server.Server
@@ -746,7 +746,7 @@ client.setRequestHandler<CreateMessageRequest>(Method.Defined.SamplingCreateMess
 
 <!--- KNIT example-client-sampling-01.kt -->
 
-Inside the handler you can pick any model/provider, require approvals, or reject the request. If you don’t support tool
+Inside the handler you can pick any model/provider, require approvals, or reject the request. If you don't support tool
 use, omit `sampling.tools` from capabilities.
 
 #### Elicitation
@@ -816,7 +816,7 @@ transport that best matches where the server runs.
 
 ### STDIO Transport
 
-`StdioClientTransport` and `StdioServerTransport` tunnel MCP messages over stdin/stdout—perfect for editor plugins or
+`StdioClientTransport` and `StdioServerTransport` tunnel MCP messages over stdin/stdout. They are perfect for editor plugins or
 CLI tooling that spawns a helper process. No networking setup is required.
 
 ### Streamable HTTP Transport
@@ -825,7 +825,7 @@ CLI tooling that spawns a helper process. No networking setup is required.
 over a single HTTP endpoint with optional JSON-only or SSE streaming responses. This is the recommended choice for
 remote deployments and integrates nicely with proxies or service meshes.
 
-These helpers automatically install `ContentNegotiation` with `McpJson` — do not install it yourself, or a warning will
+These helpers automatically install `ContentNegotiation` with `McpJson`. Do not install it yourself, or a warning will
 be logged. Both accept a `path` parameter (default: `"/mcp"`) to mount the endpoint at any URL:
 
 <!--- CLEAR -->
@@ -882,9 +882,9 @@ install(CORS) {
 
 Server-Sent Events remain available for backwards compatibility with older MCP clients. Two Ktor helpers are provided:
 
-- **`Application.mcp { }`** — installs SSE and `ContentNegotiation` with `McpJson` automatically, then registers MCP
-  endpoints at `/`. Do not install `ContentNegotiation` yourself — the SDK handles it.
-- **`Route.mcp { }`** — registers MCP endpoints at the current route path; requires `install(SSE)` in the application
+- **`Application.mcp { }`** - installs SSE and `ContentNegotiation` with `McpJson` automatically, then registers MCP
+  endpoints at `/`. Do not install `ContentNegotiation` yourself; the SDK handles it.
+- **`Route.mcp { }`** - registers MCP endpoints at the current route path; requires `install(SSE)` in the application
   first. Use this to host MCP alongside other routes or under a path prefix:
 
 <!--- CLEAR -->
@@ -932,7 +932,7 @@ Prefer Streamable HTTP for new projects.
 
 ### WebSocket Transport
 
-`WebSocketClientTransport` plus the matching server utilities provide full-duplex, low-latency connections—useful when
+`WebSocketClientTransport` plus the matching server utilities provide full-duplex, low-latency connections. This is useful when
 you expect lots of notifications or long-running sessions behind a reverse proxy that already terminates WebSockets.
 
 ### ChannelTransport (testing)
@@ -957,7 +957,7 @@ allowing for easy testing of MCP functionality without the need for network setu
    claude mcp add --transport http kotlin-mcp http://localhost:3000
    ```
 
-3. In the Inspector, confirm prompts, tools, resources, completions, and logs show up. Iterate locally until you’re
+3. In the Inspector, confirm prompts, tools, resources, completions, and logs show up. Iterate locally until you're
    ready to host the server wherever you prefer.
 
 ## Examples
@@ -979,5 +979,5 @@ Please see the [contribution guide](CONTRIBUTING.md) and the [Code of conduct](C
 
 ## License
 
-This project is licensed under Apache 2.0 for new contributions, with existing code under MIT—see the [LICENSE](LICENSE)
+This project is licensed under Apache 2.0 for new contributions, with existing code under MIT. See the [LICENSE](LICENSE)
 file for details.

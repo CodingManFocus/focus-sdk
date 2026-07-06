@@ -85,6 +85,8 @@ Strong signals already present:
   DNS rebinding hooks, request-size limits, and SSE reconnection tests.
 - `conformance-test` includes server, client, and client-auth entry points with
   an empty expected-failure baseline.
+- `docs/dependency-update-policy.md` defines dependency update cadence,
+  validation expectations, and compatibility rules.
 
 Known gaps and risks:
 
@@ -99,9 +101,6 @@ Known gaps and risks:
   sampling with tools, transport resumability, and security constraints.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
   SDK explicitly claims production support for the extension.
-- The dependency update policy was not previously published.
-- The README contains mojibake in several prose sections and should be cleaned
-  before a Tier request.
 - The conformance README must stay synchronized with
   `conformance-test/run-conformance.sh`.
 
