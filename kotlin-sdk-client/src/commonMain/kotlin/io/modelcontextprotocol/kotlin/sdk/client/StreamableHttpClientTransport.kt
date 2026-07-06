@@ -7,7 +7,6 @@ import io.ktor.client.plugins.sse.ClientSSESession
 import io.ktor.client.plugins.sse.SSEClientException
 import io.ktor.client.plugins.sse.sseSession
 import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.accept
 import io.ktor.client.request.delete
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
@@ -330,7 +329,6 @@ public class StreamableHttpClientTransport(
             val session = client.sseSession(urlString = url, showRetryEvents = true) {
                 method = HttpMethod.Get
                 applyCommonHeaders(this)
-                accept(ContentType.Application.Json)
                 lastEventId?.let { headers.append(MCP_RESUMPTION_TOKEN_HEADER, it) }
                 requestBuilder()
             }

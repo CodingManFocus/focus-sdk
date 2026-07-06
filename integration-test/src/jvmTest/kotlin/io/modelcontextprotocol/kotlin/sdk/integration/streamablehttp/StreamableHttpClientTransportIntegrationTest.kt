@@ -5,8 +5,10 @@ import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.sse.SSE
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.request.header
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -26,10 +28,12 @@ import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.modelcontextprotocol.kotlin.test.utils.actualPort
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -183,6 +187,35 @@ internal class StreamableHttpClientTransportIntegrationTest {
             client.connect(StreamableHttpClientTransport(client = newHttpClient(), url = url))
 
             client.ping()
+
+            client.close()
+        }
+    }
+
+    @Test
+    fun `client opens GET SSE with event stream accept header`(): Unit = runBlocking(Dispatchers.IO) {
+        val sessionId = "sid-accept"
+        val acceptHeader = CompletableDeferred<String?>()
+        runWithServer({
+            mcpPostRoute(sessionId)
+            get(MCP_PATH) {
+                acceptHeader.complete(call.request.header(HttpHeaders.Accept))
+                call.respondText(
+                    text = "",
+                    contentType = ContentType.Text.EventStream,
+                    status = HttpStatusCode.MethodNotAllowed,
+                )
+            }
+        }) { url ->
+            val client = newClient()
+            client.connect(StreamableHttpClientTransport(client = newHttpClient(), url = url))
+
+            withTimeout(5_000) {
+                acceptHeader.await()
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    .orEmpty() shouldContain ContentType.Text.EventStream.toString()
+            }
 
             client.close()
         }
