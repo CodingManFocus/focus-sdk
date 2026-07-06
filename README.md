@@ -972,6 +972,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [API Reference](https://kotlin.sdk.modelcontextprotocol.io/)
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
+- [Auth and OAuth guide](./docs/auth-oauth.md)
 - [Conformance status](./docs/conformance-status.md)
 - [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)

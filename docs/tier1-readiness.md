@@ -107,7 +107,10 @@ Known gaps and risks:
   authorization request, authorization-code token exchange, refresh token
   primitives, and dynamic Streamable HTTP bearer-header coverage, but the full
   SDK OAuth flow still needs end-to-end transport integration.
-- Feature docs are not yet comprehensive for auth, URL-mode elicitation,
+- `docs/auth-oauth.md` now documents the current OAuth helper flow, but
+  high-level client credentials providers, dynamic registration guidance, and
+  server-side resource-server middleware/examples are still open.
+- Feature docs are not yet comprehensive for URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
 - Maintenance evidence for standardized issue labels or GitHub issue types,
   triage SLA, and critical bug SLA still needs to be documented or verified.
@@ -145,8 +148,9 @@ Known gaps and risks:
 ### Phase 3: Documentation and Release Readiness
 
 - Add feature examples for elicitation, URL-mode elicitation, sampling with
-  tools, auth/OAuth, Streamable HTTP resumability, and security-sensitive host
-  validation.
+  tools, Streamable HTTP resumability, and security-sensitive host validation.
+- Continue auth/OAuth parity from the current guide toward high-level client
+  credentials providers and server-side resource-server examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1
