@@ -72,7 +72,7 @@ Status legend:
 | Roots | Ready | Client root registry and roots/list_changed notification; server `listRoots`; README example. | Add security guidance for root grants. |
 | Sampling | Ready | Server `createMessage`; client sampling handler and sampling-tools validation; README example. | Add a dedicated sampling-with-tools guide. |
 | Elicitation | Partial | Client/server surfaces include form and URL-mode elicitation and completion notification; README example covers both modes at a high level. | Add dedicated form-mode and URL-mode guides with security constraints. |
-| Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, bearer request helpers, client credentials token exchange, and Ktor bearer providers. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add JWT private-key assertion support, dynamic registration guidance, and server-side resource-server middleware/examples. |
+| Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, bearer request helpers, client credentials token exchange, `private_key_jwt` assertion requests, and Ktor bearer providers. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add SDK-managed JWT assertion signing, dynamic registration guidance, and server-side resource-server middleware/examples. |
 | Streamable HTTP transport | Partial | Client and server transports support protocol headers, JSON/SSE responses, session handling, resumability hooks, retry handling, DNS rebinding controls, and request-size limits. | Add a resumability guide and keep conformance coverage current. |
 | Stdio transport | Ready | Client/server stdio transports and tests; README examples. | Keep lifecycle/error-handling tests current. |
 | SSE compatibility transport | Ready | Client/server SSE transports remain available for older MCP clients; README marks Streamable HTTP as preferred. | Keep compatibility docs clear and avoid positioning SSE as preferred for new work. |
@@ -88,8 +88,8 @@ Status legend:
 ## Priority Slices
 
 1. Auth/OAuth parity:
-   add JWT private-key assertion support, dynamic registration guidance, and
-   server-side resource-server middleware/examples.
+   add SDK-managed JWT private-key assertion signing, dynamic registration
+   guidance, and server-side resource-server middleware/examples.
 2. Streamable HTTP guide:
    document stateful/stateless modes, JSON vs SSE responses, resumability,
    retry, session lifecycle, protocol-version headers, DNS rebinding, and body

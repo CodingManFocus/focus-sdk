@@ -28,6 +28,10 @@ import kotlinx.serialization.json.jsonPrimitive
 /** Capability extension identifier for OAuth client credentials. */
 public const val MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION: String = "io.modelcontextprotocol/oauth-client-credentials"
 
+/** OAuth JWT bearer client assertion type for `private_key_jwt` token endpoint authentication. */
+public const val MCP_OAUTH_JWT_BEARER_CLIENT_ASSERTION_TYPE: String =
+    "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
 /**
  * OAuth 2.0 Protected Resource Metadata for an MCP server.
  *
@@ -136,6 +140,11 @@ public enum class McpOAuthTokenEndpointAuthMethod(public val wireValue: String) 
     ClientSecretPost("client_secret_post"),
 
     /**
+     * Authenticate with a signed JWT client assertion in the form body.
+     */
+    PrivateKeyJwt("private_key_jwt"),
+
+    /**
      * Public client; send `client_id` in the form body without a client secret.
      */
     None("none"),
@@ -145,6 +154,16 @@ public enum class McpOAuthTokenEndpointAuthMethod(public val wireValue: String) 
  * Client credentials used when exchanging an MCP OAuth authorization code.
  */
 public data class McpOAuthClientCredentials(public val clientId: String, public val clientSecret: String? = null)
+
+/**
+ * Supplies a fresh signed JWT client assertion for `private_key_jwt` token endpoint authentication.
+ *
+ * The SDK adds the assertion to token requests but does not generate or sign JWTs.
+ * Applications should create short-lived assertions with an OAuth/JWT library.
+ */
+public fun interface McpOAuthClientAssertionProvider {
+    public suspend fun assertion(): String
+}
 
 /**
  * Parameters for exchanging an MCP OAuth authorization code for tokens.
@@ -233,7 +252,13 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
 public class McpOAuthClientCredentialsProvider(
     private val httpClient: HttpClient,
     private val request: McpOAuthClientCredentialsTokenRequest,
+    private val clientAssertionProvider: McpOAuthClientAssertionProvider?,
 ) {
+    public constructor(
+        httpClient: HttpClient,
+        request: McpOAuthClientCredentialsTokenRequest,
+    ) : this(httpClient, request, null)
+
     private var tokenStore: McpOAuthTokenStore? = null
 
     /** Current access token, or `null` before the provider obtains one. */
@@ -247,7 +272,7 @@ public class McpOAuthClientCredentialsProvider(
             return existing.accessToken
         }
 
-        val tokens = exchangeMcpOAuthClientCredentials(httpClient, request)
+        val tokens = exchangeMcpOAuthClientCredentials(httpClient, request, clientAssertionProvider)
         tokenStore = McpOAuthTokenStore(tokens)
         return tokens.accessToken
     }
@@ -327,19 +352,43 @@ public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest):
 public fun selectMcpOAuthTokenEndpointAuthMethod(
     metadata: OAuthAuthorizationServerMetadata,
     clientSecret: String?,
+): McpOAuthTokenEndpointAuthMethod = selectMcpOAuthTokenEndpointAuthMethod(
+    metadata = metadata,
+    clientSecret = clientSecret,
+    clientAssertionProvider = null,
+)
+
+/**
+ * Selects a token endpoint authentication method from authorization server metadata.
+ */
+public fun selectMcpOAuthTokenEndpointAuthMethod(
+    metadata: OAuthAuthorizationServerMetadata,
+    clientSecret: String?,
+    clientAssertionProvider: McpOAuthClientAssertionProvider?,
 ): McpOAuthTokenEndpointAuthMethod {
     val methods = metadata.tokenEndpointAuthMethodsSupported
         ?.mapNotNull { tokenEndpointAuthMethodFromWireValueOrNull(it) }
         ?: listOf(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic)
-    val usableMethods = if (clientSecret == null) {
-        methods.filter { it == McpOAuthTokenEndpointAuthMethod.None }
-    } else {
-        methods.filter { it != McpOAuthTokenEndpointAuthMethod.None }
-            .ifEmpty { methods.filter { it == McpOAuthTokenEndpointAuthMethod.None } }
+    val usableMethods = methods.filter {
+        when (it) {
+            McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+            McpOAuthTokenEndpointAuthMethod.ClientSecretPost,
+            -> clientSecret != null
+
+            McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt -> clientAssertionProvider != null
+            McpOAuthTokenEndpointAuthMethod.None -> clientSecret == null && clientAssertionProvider == null
+        }
+    }.ifEmpty {
+        if (clientSecret != null && clientAssertionProvider == null) {
+            methods.filter { it == McpOAuthTokenEndpointAuthMethod.None }
+        } else {
+            emptyList()
+        }
     }
     return usableMethods.firstOrNull()
         ?: throw McpOAuthException(
-            "No supported token endpoint auth method for advertised methods ${metadata.tokenEndpointAuthMethodsSupported}",
+            "No supported token endpoint auth method for advertised methods " +
+                "${metadata.tokenEndpointAuthMethodsSupported}",
         )
 }
 
@@ -416,6 +465,19 @@ public suspend fun refreshMcpOAuthAccessToken(
 public suspend fun exchangeMcpOAuthClientCredentials(
     httpClient: HttpClient,
     request: McpOAuthClientCredentialsTokenRequest,
+): McpOAuthTokenResponse = exchangeMcpOAuthClientCredentials(
+    httpClient = httpClient,
+    request = request,
+    clientAssertionProvider = null,
+)
+
+/**
+ * Exchanges MCP OAuth client credentials for an access token using an optional JWT client assertion.
+ */
+public suspend fun exchangeMcpOAuthClientCredentials(
+    httpClient: HttpClient,
+    request: McpOAuthClientCredentialsTokenRequest,
+    clientAssertionProvider: McpOAuthClientAssertionProvider?,
 ): McpOAuthTokenResponse {
     val response = submitMcpOAuthTokenRequest(
         httpClient = httpClient,
@@ -423,6 +485,7 @@ public suspend fun exchangeMcpOAuthClientCredentials(
         formParameters = request.tokenFormParameters(),
         clientCredentials = request.clientCredentials,
         tokenEndpointAuthMethod = request.tokenEndpointAuthMethod,
+        clientAssertionProvider = clientAssertionProvider,
     )
 
     val body = response.bodyAsText()
@@ -709,6 +772,7 @@ private suspend fun submitMcpOAuthTokenRequest(
     formParameters: Parameters,
     clientCredentials: McpOAuthClientCredentials,
     tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod,
+    clientAssertionProvider: McpOAuthClientAssertionProvider? = null,
 ): HttpResponse = when (tokenEndpointAuthMethod) {
     McpOAuthTokenEndpointAuthMethod.ClientSecretBasic -> httpClient.submitForm(
         url = tokenEndpoint,
@@ -723,6 +787,15 @@ private suspend fun submitMcpOAuthTokenRequest(
     McpOAuthTokenEndpointAuthMethod.ClientSecretPost -> httpClient.submitForm(
         url = tokenEndpoint,
         formParameters = formParameters.withClientCredentials(clientCredentials, tokenEndpointAuthMethod),
+    )
+
+    McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt -> httpClient.submitForm(
+        url = tokenEndpoint,
+        formParameters = formParameters.withClientAssertion(
+            clientCredentials = clientCredentials,
+            clientAssertion = clientAssertionProvider?.assertion()
+                ?: throw McpOAuthException("private_key_jwt requires a client assertion provider"),
+        ),
     )
 
     McpOAuthTokenEndpointAuthMethod.None -> httpClient.submitForm(
@@ -761,6 +834,16 @@ private fun Parameters.withClientCredentials(
     if (tokenEndpointAuthMethod != McpOAuthTokenEndpointAuthMethod.None) {
         append("client_secret", clientCredentials.requireClientSecret(tokenEndpointAuthMethod))
     }
+}
+
+private fun Parameters.withClientAssertion(
+    clientCredentials: McpOAuthClientCredentials,
+    clientAssertion: String,
+): Parameters = Parameters.build {
+    appendAll(this@withClientAssertion)
+    append("client_id", clientCredentials.clientId)
+    append("client_assertion_type", MCP_OAUTH_JWT_BEARER_CLIENT_ASSERTION_TYPE)
+    append("client_assertion", clientAssertion)
 }
 
 private fun McpOAuthClientCredentials.basicAuthorizationHeader(authMethod: McpOAuthTokenEndpointAuthMethod): String {

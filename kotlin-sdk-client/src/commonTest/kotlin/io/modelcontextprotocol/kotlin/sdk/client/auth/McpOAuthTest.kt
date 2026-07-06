@@ -125,6 +125,17 @@ class McpOAuthTest {
             selectMcpOAuthTokenEndpointAuthMethod(metadata, clientSecret = null),
         )
         assertEquals(
+            McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt,
+            selectMcpOAuthTokenEndpointAuthMethod(
+                OAuthAuthorizationServerMetadata(
+                    tokenEndpointAuthMethodsSupported = listOf("private_key_jwt"),
+                    raw = buildJsonObject {},
+                ),
+                clientSecret = null,
+                clientAssertionProvider = McpOAuthClientAssertionProvider { "signed-jwt" },
+            ),
+        )
+        assertEquals(
             McpOAuthTokenEndpointAuthMethod.None,
             selectMcpOAuthTokenEndpointAuthMethod(
                 OAuthAuthorizationServerMetadata(
@@ -230,6 +241,51 @@ class McpOAuthTest {
         assertEquals("client_credentials", capturedForm?.formData?.get("grant_type"))
         assertEquals("client", capturedForm?.formData?.get("client_id"))
         assertEquals("secret", capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should exchange client credentials using private key jwt assertion`() = runTest {
+        var capturedForm: FormDataContent? = null
+        var capturedAuthorization: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                capturedAuthorization = request.headers[HttpHeaders.Authorization]
+                respondJson("""{"access_token":"machine-token"}""")
+            },
+        )
+
+        exchangeMcpOAuthClientCredentials(
+            client,
+            clientCredentialsRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt,
+                clientSecret = null,
+            ),
+            McpOAuthClientAssertionProvider { "signed-jwt" },
+        )
+
+        assertNull(capturedAuthorization)
+        assertEquals("client_credentials", capturedForm?.formData?.get("grant_type"))
+        assertEquals("https://mcp.example.com/mcp", capturedForm?.formData?.get("resource"))
+        assertEquals("client", capturedForm?.formData?.get("client_id"))
+        assertEquals(MCP_OAUTH_JWT_BEARER_CLIENT_ASSERTION_TYPE, capturedForm?.formData?.get("client_assertion_type"))
+        assertEquals("signed-jwt", capturedForm?.formData?.get("client_assertion"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should require assertion provider for private key jwt token exchange`() = runTest {
+        val client = HttpClient(MockEngine { respondJson("""{"access_token":"machine-token"}""") })
+
+        assertFailsWith<McpOAuthException> {
+            exchangeMcpOAuthClientCredentials(
+                client,
+                clientCredentialsRequest(
+                    authMethod = McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt,
+                    clientSecret = null,
+                ),
+            )
+        }
     }
 
     @Test

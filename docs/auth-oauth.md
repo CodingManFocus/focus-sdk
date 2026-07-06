@@ -35,6 +35,8 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - One automatic refresh/retry on `401 Unauthorized` for Ktor HTTP clients.
 - Client credentials token exchange and a Ktor bearer provider for
   machine-to-machine clients.
+- `private_key_jwt` client credentials requests when the application supplies a
+  signed JWT assertion.
 
 The SDK does not yet provide a complete browser callback server, persistent
 token vault, dynamic client registration client, JWT client assertion builder,
@@ -321,14 +323,50 @@ val transport = StreamableHttpClientTransport(
 )
 ```
 
+For `private_key_jwt` deployments, create the signed assertion with a dedicated
+OAuth/JWT library and pass a fresh assertion provider to the token request:
+
+```kotlin
+import io.ktor.client.HttpClient
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientAssertionProvider
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsProvider
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsTokenRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenEndpointAuthMethod
+
+val jwtAssertionProvider = McpOAuthClientAssertionProvider {
+    signJwtAssertion(
+        issuer = "my-service",
+        subject = "my-service",
+        audience = "https://auth.example.com/token",
+        lifetimeSeconds = 300,
+    )
+}
+
+val jwtRequest = McpOAuthClientCredentialsTokenRequest(
+    tokenEndpoint = "https://auth.example.com/token",
+    resource = "https://mcp.example.com/mcp",
+    scope = "tools:call",
+    clientCredentials = McpOAuthClientCredentials(clientId = "my-service"),
+    tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt,
+)
+
+val tokenClient = HttpClient()
+val jwtProvider = McpOAuthClientCredentialsProvider(
+    httpClient = tokenClient,
+    request = jwtRequest,
+    clientAssertionProvider = jwtAssertionProvider,
+)
+```
+
+The SDK sends the OAuth JWT bearer `client_assertion_type` and sends the
+provider result as `client_assertion`; it does not generate or sign the JWT.
+The assertion should be short-lived and include claims such as `iss`, `sub`,
+`aud`, `iat`, and `exp` as required by the authorization server.
+
 The provider obtains a token before the first protected MCP request. If the
 server returns `401 Unauthorized`, it obtains a fresh client credentials token
 and retries the request once.
-
-JWT private-key assertions are recommended by the extension for stronger
-deployments, but the Kotlin SDK does not yet provide a JWT assertion provider.
-Use a dedicated OAuth/JWT library for that flow until a first-class SDK helper
-exists.
 
 ## Security Checklist
 
