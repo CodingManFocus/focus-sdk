@@ -2,15 +2,19 @@ package io.modelcontextprotocol.kotlin.sdk.client.auth
 
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.isSuccess
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -109,6 +113,59 @@ public data class McpOAuthAuthorizationRequest(
 )
 
 /**
+ * OAuth token endpoint client authentication methods supported by MCP auth helpers.
+ */
+public enum class McpOAuthTokenEndpointAuthMethod(public val wireValue: String) {
+    /**
+     * Send client credentials in the `Authorization: Basic ...` header.
+     */
+    ClientSecretBasic("client_secret_basic"),
+
+    /**
+     * Send client credentials in the form body.
+     */
+    ClientSecretPost("client_secret_post"),
+
+    /**
+     * Public client; send `client_id` in the form body without a client secret.
+     */
+    None("none"),
+}
+
+/**
+ * Client credentials used when exchanging an MCP OAuth authorization code.
+ */
+public data class McpOAuthClientCredentials(public val clientId: String, public val clientSecret: String? = null)
+
+/**
+ * Parameters for exchanging an MCP OAuth authorization code for tokens.
+ *
+ * MCP clients must include the `resource` parameter in token requests.
+ */
+public data class McpOAuthAuthorizationCodeTokenRequest(
+    public val tokenEndpoint: String,
+    public val code: String,
+    public val redirectUri: String,
+    public val codeVerifier: String,
+    public val resource: String,
+    public val clientCredentials: McpOAuthClientCredentials,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod =
+        McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+)
+
+/**
+ * OAuth token response returned by an authorization server.
+ */
+public data class McpOAuthTokenResponse(
+    public val accessToken: String,
+    public val tokenType: String? = null,
+    public val expiresIn: Int? = null,
+    public val refreshToken: String? = null,
+    public val scope: String? = null,
+    public val raw: JsonObject,
+)
+
+/**
  * Returns the canonical origin for [url], excluding the default port.
  */
 public fun mcpOAuthOrigin(url: String): String {
@@ -174,6 +231,72 @@ public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest):
     request.state?.let { builder.parameters.append("state", it) }
     request.scope?.let { builder.parameters.append("scope", it) }
     return builder.buildString()
+}
+
+/**
+ * Selects a token endpoint authentication method from authorization server metadata.
+ */
+public fun selectMcpOAuthTokenEndpointAuthMethod(
+    metadata: OAuthAuthorizationServerMetadata,
+    clientSecret: String?,
+): McpOAuthTokenEndpointAuthMethod {
+    val methods = metadata.tokenEndpointAuthMethodsSupported
+        ?.mapNotNull { tokenEndpointAuthMethodFromWireValueOrNull(it) }
+        ?: listOf(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic)
+    val usableMethods = if (clientSecret == null) {
+        methods.filter { it == McpOAuthTokenEndpointAuthMethod.None }
+    } else {
+        methods.filter { it != McpOAuthTokenEndpointAuthMethod.None }
+    }
+    return usableMethods.firstOrNull()
+        ?: throw McpOAuthException(
+            "No supported token endpoint auth method for advertised methods ${metadata.tokenEndpointAuthMethodsSupported}",
+        )
+}
+
+/**
+ * Exchanges an authorization code for OAuth tokens using MCP-required token request parameters.
+ */
+public suspend fun exchangeMcpOAuthAuthorizationCode(
+    httpClient: HttpClient,
+    request: McpOAuthAuthorizationCodeTokenRequest,
+): McpOAuthTokenResponse {
+    requireValidPkceVerifier(request.codeVerifier)
+    val response = when (request.tokenEndpointAuthMethod) {
+        McpOAuthTokenEndpointAuthMethod.ClientSecretBasic -> httpClient.submitForm(
+            url = request.tokenEndpoint,
+            formParameters = request.tokenFormParameters(includeClientCredentials = false),
+        ) {
+            header(HttpHeaders.Authorization, request.basicAuthorizationHeader())
+        }
+
+        McpOAuthTokenEndpointAuthMethod.ClientSecretPost -> httpClient.submitForm(
+            url = request.tokenEndpoint,
+            formParameters = request.tokenFormParameters(includeClientCredentials = true),
+        )
+
+        McpOAuthTokenEndpointAuthMethod.None -> httpClient.submitForm(
+            url = request.tokenEndpoint,
+            formParameters = request.tokenFormParameters(includeClientCredentials = true),
+        )
+    }
+
+    val body = response.bodyAsText()
+    val json = try {
+        McpJson.parseToJsonElement(body).jsonObject
+    } catch (e: Exception) {
+        throw McpOAuthException("Failed to parse token response from ${request.tokenEndpoint}", e)
+    }
+
+    val responseError = json.stringOrNull("error")
+    if (!response.status.isSuccess() || responseError != null) {
+        val errorDescription = json.stringOrNull("error_description")
+        val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
+            .ifEmpty { body }
+        throw McpOAuthException("Token exchange failed (${response.status}): $errorDetail")
+    }
+
+    return json.toMcpOAuthTokenResponse()
 }
 
 /**
@@ -356,6 +479,46 @@ private fun JsonObject.toOAuthAuthorizationServerMetadata(): OAuthAuthorizationS
         raw = this,
     )
 
+private fun JsonObject.toMcpOAuthTokenResponse(): McpOAuthTokenResponse = McpOAuthTokenResponse(
+    accessToken = stringOrNull("access_token")
+        ?: throw McpOAuthException("Token response does not include access_token"),
+    tokenType = stringOrNull("token_type"),
+    expiresIn = this["expires_in"]?.jsonPrimitive?.intOrNull,
+    refreshToken = stringOrNull("refresh_token"),
+    scope = stringOrNull("scope"),
+    raw = this,
+)
+
+private fun tokenEndpointAuthMethodFromWireValueOrNull(value: String): McpOAuthTokenEndpointAuthMethod? =
+    McpOAuthTokenEndpointAuthMethod.entries.firstOrNull { it.wireValue == value }
+
+private fun McpOAuthAuthorizationCodeTokenRequest.tokenFormParameters(includeClientCredentials: Boolean): Parameters =
+    Parameters.build {
+        append("grant_type", "authorization_code")
+        append("code", code)
+        append("redirect_uri", redirectUri)
+        append("code_verifier", codeVerifier)
+        append("resource", resource)
+
+        if (includeClientCredentials) {
+            append("client_id", clientCredentials.clientId)
+            if (tokenEndpointAuthMethod != McpOAuthTokenEndpointAuthMethod.None) {
+                append("client_secret", requireClientSecret(tokenEndpointAuthMethod))
+            }
+        }
+    }
+
+private fun McpOAuthAuthorizationCodeTokenRequest.basicAuthorizationHeader(): String {
+    val clientSecret = requireClientSecret(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic)
+    val userPass = "${formUrlEncode(clientCredentials.clientId)}:${formUrlEncode(clientSecret)}"
+    return "Basic ${base64Standard(userPass.encodeToByteArray())}"
+}
+
+private fun McpOAuthAuthorizationCodeTokenRequest.requireClientSecret(
+    authMethod: McpOAuthTokenEndpointAuthMethod,
+): String = clientCredentials.clientSecret
+    ?: throw McpOAuthException("${authMethod.wireValue} requires a client secret")
+
 private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.content
 
 private fun JsonObject.booleanOrNull(key: String): Boolean? = this[key]?.jsonPrimitive?.booleanOrNull
@@ -451,6 +614,62 @@ private fun base64UrlNoPadding(bytes: ByteArray): String {
     return result.toString()
 }
 
+private fun base64Standard(bytes: ByteArray): String {
+    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    val result = StringBuilder(((bytes.size + 2) / 3) * 4)
+    var index = 0
+    while (index + 2 < bytes.size) {
+        val block = ((bytes[index].toInt() and 0xff) shl 16) or
+            ((bytes[index + 1].toInt() and 0xff) shl 8) or
+            (bytes[index + 2].toInt() and 0xff)
+        result.append(alphabet[(block ushr 18) and 0x3f])
+        result.append(alphabet[(block ushr 12) and 0x3f])
+        result.append(alphabet[(block ushr 6) and 0x3f])
+        result.append(alphabet[block and 0x3f])
+        index += 3
+    }
+    val remaining = bytes.size - index
+    if (remaining == 1) {
+        val block = (bytes[index].toInt() and 0xff) shl 16
+        result.append(alphabet[(block ushr 18) and 0x3f])
+        result.append(alphabet[(block ushr 12) and 0x3f])
+        result.append("==")
+    } else if (remaining == 2) {
+        val block = ((bytes[index].toInt() and 0xff) shl 16) or
+            ((bytes[index + 1].toInt() and 0xff) shl 8)
+        result.append(alphabet[(block ushr 18) and 0x3f])
+        result.append(alphabet[(block ushr 12) and 0x3f])
+        result.append(alphabet[(block ushr 6) and 0x3f])
+        result.append('=')
+    }
+    return result.toString()
+}
+
+private fun formUrlEncode(value: String): String {
+    val result = StringBuilder(value.length)
+    for (byte in value.encodeToByteArray()) {
+        val unsigned = byte.toInt() and 0xff
+        val char = unsigned.toChar()
+        when {
+            char.isFormUrlEncodeLiteral() -> result.append(char)
+
+            char == ' ' -> result.append('+')
+
+            else -> {
+                result.append('%')
+                result.append(HEX[unsigned ushr 4])
+                result.append(HEX[unsigned and 0x0f])
+            }
+        }
+    }
+    return result.toString()
+}
+
+private fun Char.isFormUrlEncodeLiteral(): Boolean = when (this) {
+    in 'A'..'Z', in 'a'..'z', in '0'..'9', '-', '.', '_', '*' -> true
+    else -> false
+}
+
 private fun sha256(input: ByteArray): ByteArray {
     val bitLength = input.size.toLong() * 8
     val paddedLength = (((input.size + 9) + 63) / 64) * 64
@@ -534,6 +753,8 @@ private fun sha256(input: ByteArray): ByteArray {
 }
 
 private fun Int.rotateRight(bitCount: Int): Int = (this ushr bitCount) or (this shl (32 - bitCount))
+
+private const val HEX = "0123456789ABCDEF"
 
 private val SHA256_K = intArrayOf(
     0x428a2f98,

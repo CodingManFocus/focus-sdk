@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.http.ContentType
@@ -105,6 +106,182 @@ class McpOAuthTest {
         assertEquals("files:read files:write", parsed.parameters["scope"])
         assertEquals("https://mcp.example.com/mcp", parsed.parameters["resource"])
         assertEquals("state value", parsed.parameters["state"])
+    }
+
+    @Test
+    fun `should select token endpoint auth method from metadata`() {
+        val metadata = OAuthAuthorizationServerMetadata(
+            tokenEndpointAuthMethodsSupported = listOf("unsupported", "none", "client_secret_basic"),
+            raw = buildJsonObject {},
+        )
+
+        assertEquals(
+            McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+            selectMcpOAuthTokenEndpointAuthMethod(metadata, clientSecret = "secret"),
+        )
+        assertEquals(
+            McpOAuthTokenEndpointAuthMethod.None,
+            selectMcpOAuthTokenEndpointAuthMethod(metadata, clientSecret = null),
+        )
+        assertEquals(
+            McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+            selectMcpOAuthTokenEndpointAuthMethod(
+                OAuthAuthorizationServerMetadata(raw = buildJsonObject {}),
+                clientSecret = "secret",
+            ),
+        )
+        assertEquals(
+            McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+            tokenRequest().tokenEndpointAuthMethod,
+        )
+        assertFailsWith<McpOAuthException> {
+            selectMcpOAuthTokenEndpointAuthMethod(
+                OAuthAuthorizationServerMetadata(
+                    tokenEndpointAuthMethodsSupported = listOf("private_key_jwt"),
+                    raw = buildJsonObject {},
+                ),
+                clientSecret = "secret",
+            )
+        }
+    }
+
+    @Test
+    fun `should exchange authorization code using client secret basic`() = runTest {
+        var capturedForm: FormDataContent? = null
+        var capturedAuthorization: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                capturedAuthorization = request.headers[HttpHeaders.Authorization]
+                respondJson(
+                    """
+                    {
+                      "access_token": "access-123",
+                      "token_type": "Bearer",
+                      "expires_in": 3600,
+                      "refresh_token": "refresh-123",
+                      "scope": "files:read"
+                    }
+                    """.trimIndent(),
+                )
+            },
+        )
+
+        val response = exchangeMcpOAuthAuthorizationCode(
+            client,
+            tokenRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretBasic),
+        )
+
+        assertEquals("Basic Y2xpZW50OnNlY3JldA==", capturedAuthorization)
+        assertEquals("authorization_code", capturedForm?.formData?.get("grant_type"))
+        assertEquals("code-123", capturedForm?.formData?.get("code"))
+        assertEquals("http://127.0.0.1/callback", capturedForm?.formData?.get("redirect_uri"))
+        assertEquals("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", capturedForm?.formData?.get("code_verifier"))
+        assertEquals("https://mcp.example.com/mcp", capturedForm?.formData?.get("resource"))
+        assertNull(capturedForm?.formData?.get("client_id"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+        assertEquals("access-123", response.accessToken)
+        assertEquals("Bearer", response.tokenType)
+        assertEquals(3600, response.expiresIn)
+        assertEquals("refresh-123", response.refreshToken)
+        assertEquals("files:read", response.scope)
+    }
+
+    @Test
+    fun `should form encode client secret basic credentials`() = runTest {
+        var capturedAuthorization: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedAuthorization = request.headers[HttpHeaders.Authorization]
+                respondJson("""{"access_token":"access-123"}""")
+            },
+        )
+
+        exchangeMcpOAuthAuthorizationCode(
+            client,
+            tokenRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretBasic,
+                clientId = "client id",
+                clientSecret = "sec:ret",
+            ),
+        )
+
+        assertEquals("Basic Y2xpZW50K2lkOnNlYyUzQXJldA==", capturedAuthorization)
+    }
+
+    @Test
+    fun `should exchange authorization code using client secret post`() = runTest {
+        var capturedForm: FormDataContent? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                respondJson("""{"access_token":"access-123"}""")
+            },
+        )
+
+        exchangeMcpOAuthAuthorizationCode(
+            client,
+            tokenRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretPost),
+        )
+
+        assertEquals("client", capturedForm?.formData?.get("client_id"))
+        assertEquals("secret", capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should exchange authorization code using public client auth`() = runTest {
+        var capturedForm: FormDataContent? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedForm = request.body as FormDataContent
+                respondJson("""{"access_token":"access-123"}""")
+            },
+        )
+
+        exchangeMcpOAuthAuthorizationCode(
+            client,
+            tokenRequest(
+                authMethod = McpOAuthTokenEndpointAuthMethod.None,
+                clientSecret = null,
+            ),
+        )
+
+        assertEquals("client", capturedForm?.formData?.get("client_id"))
+        assertNull(capturedForm?.formData?.get("client_secret"))
+    }
+
+    @Test
+    fun `should fail token exchange on oauth error response`() = runTest {
+        val client = HttpClient(
+            MockEngine {
+                respondJson(
+                    """{"error":"invalid_grant","error_description":"expired code"}""",
+                    status = HttpStatusCode.BadRequest,
+                )
+            },
+        )
+
+        assertFailsWith<McpOAuthException> {
+            exchangeMcpOAuthAuthorizationCode(
+                client,
+                tokenRequest(McpOAuthTokenEndpointAuthMethod.ClientSecretPost),
+            )
+        }
+    }
+
+    @Test
+    fun `should fail client secret post without client secret`() = runTest {
+        val client = HttpClient(MockEngine { error("Token request should not be sent") })
+
+        assertFailsWith<McpOAuthException> {
+            exchangeMcpOAuthAuthorizationCode(
+                client,
+                tokenRequest(
+                    authMethod = McpOAuthTokenEndpointAuthMethod.ClientSecretPost,
+                    clientSecret = null,
+                ),
+            )
+        }
     }
 
     @Test
@@ -322,8 +499,41 @@ class McpOAuthTest {
         )
     }
 
-    private fun MockRequestHandleScope.respondJson(content: String) = respond(
-        content = content,
-        headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
-    )
+    private fun tokenRequest(
+        authMethod: McpOAuthTokenEndpointAuthMethod? = null,
+        clientId: String = "client",
+        clientSecret: String? = "secret",
+    ): McpOAuthAuthorizationCodeTokenRequest {
+        val clientCredentials = McpOAuthClientCredentials(
+            clientId = clientId,
+            clientSecret = clientSecret,
+        )
+        return if (authMethod == null) {
+            McpOAuthAuthorizationCodeTokenRequest(
+                tokenEndpoint = "https://auth.example.com/token",
+                code = "code-123",
+                redirectUri = "http://127.0.0.1/callback",
+                codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                resource = "https://mcp.example.com/mcp",
+                clientCredentials = clientCredentials,
+            )
+        } else {
+            McpOAuthAuthorizationCodeTokenRequest(
+                tokenEndpoint = "https://auth.example.com/token",
+                code = "code-123",
+                redirectUri = "http://127.0.0.1/callback",
+                codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                resource = "https://mcp.example.com/mcp",
+                clientCredentials = clientCredentials,
+                tokenEndpointAuthMethod = authMethod,
+            )
+        }
+    }
+
+    private fun MockRequestHandleScope.respondJson(content: String, status: HttpStatusCode = HttpStatusCode.OK) =
+        respond(
+            content = content,
+            status = status,
+            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+        )
 }
