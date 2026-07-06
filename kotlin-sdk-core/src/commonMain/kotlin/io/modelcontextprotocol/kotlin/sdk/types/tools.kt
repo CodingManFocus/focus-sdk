@@ -86,6 +86,8 @@ public data class Tool(
  *   When absent, JSON Schema 2020-12 is assumed by default.
  * @property properties Optional map of property names to their schema definitions.
  * @property required Optional list of property names that are required.
+ * @property additionalProperties Whether object properties beyond [properties] are allowed.
+ * Set to `false` for tools that intentionally accept no parameters or a closed set of parameters.
  * @property defs Optional schema definitions available to references in [properties]. Serialized as `$defs`.
  */
 @Serializable
@@ -94,9 +96,26 @@ public data class ToolSchema(
     val schema: String? = null,
     val properties: JsonObject? = null,
     val required: List<String>? = null,
+    val additionalProperties: Boolean? = null,
     @SerialName("\$defs")
     val defs: JsonObject? = null,
 ) {
+    /**
+     * Source and binary compatibility constructor for the pre-`additionalProperties` shape.
+     */
+    public constructor(
+        schema: String?,
+        properties: JsonObject?,
+        required: List<String>?,
+        defs: JsonObject?,
+    ) : this(
+        schema = schema,
+        properties = properties,
+        required = required,
+        additionalProperties = null,
+        defs = defs,
+    )
+
     /** Always `"object"` for tool schemas. */
     @OptIn(ExperimentalSerializationApi::class)
     @EncodeDefault

@@ -976,6 +976,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Elicitation guide](./docs/elicitation.md)
 - [Sampling guide](./docs/sampling.md)
 - [Streamable HTTP guide](./docs/streamable-http.md)
+- [Tools guide](./docs/tools.md)
 - [Conformance status](./docs/conformance-status.md)
 - [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)

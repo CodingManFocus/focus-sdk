@@ -3,6 +3,7 @@ package io.modelcontextprotocol.kotlin.sdk.types
 import io.modelcontextprotocol.kotlin.test.utils.verifyDeserialization
 import io.modelcontextprotocol.kotlin.test.utils.verifySerialization
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -259,6 +260,45 @@ class ToolsTest {
             schema.properties?.get("parent")?.jsonObject?.get($$"$ref")?.jsonPrimitive?.content,
         )
         assertEquals(listOf("parent"), schema.required)
+    }
+
+    @Test
+    fun `should serialize ToolSchema with additionalProperties false`() {
+        val tool = Tool(
+            name = "get-current-time",
+            inputSchema = ToolSchema(additionalProperties = false),
+        )
+
+        verifySerialization(
+            tool,
+            McpJson,
+            """
+            {
+              "name": "get-current-time",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    @Test
+    fun `should deserialize ToolSchema with additionalProperties false`() {
+        val json = """
+            {
+              "name": "get-current-time",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+        """.trimIndent()
+
+        val tool = verifyDeserialization<Tool>(McpJson, json)
+
+        assertEquals(false, tool.inputSchema.additionalProperties)
     }
 
     @Test
@@ -691,6 +731,7 @@ class ToolsTest {
 
         assertNotNull(inputSchema)
         assertEquals("object", inputSchema["type"]?.jsonPrimitive?.content)
+        assertEquals(null, inputSchema["additionalProperties"]?.jsonPrimitive?.boolean)
         assertNotNull(outputSchema)
         assertEquals("object", outputSchema["type"]?.jsonPrimitive?.content)
     }
