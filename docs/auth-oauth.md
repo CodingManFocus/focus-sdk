@@ -27,6 +27,8 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - `WWW-Authenticate` parsing.
 - OAuth Protected Resource Metadata discovery.
 - OAuth Authorization Server Metadata and OIDC discovery.
+- Dynamic client registration requests when an authorization server advertises
+  a `registration_endpoint`.
 - PKCE S256 code verifier/challenge generation.
 - Authorization-code URL construction.
 - Authorization-code token exchange.
@@ -38,10 +40,10 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - `private_key_jwt` client credentials requests when the application supplies a
   signed JWT assertion.
 
-The SDK does not yet provide a complete browser callback server, persistent
-token vault, or dynamic client registration client. JVM clients can create
-RS256 `private_key_jwt` assertions with the SDK; other platforms or algorithms
-can still provide assertions through `McpOAuthClientAssertionProvider`.
+The SDK does not yet provide a complete browser callback server or persistent
+token vault. JVM clients can create RS256 `private_key_jwt` assertions with the
+SDK; other platforms or algorithms can still provide assertions through
+`McpOAuthClientAssertionProvider`.
 
 On the server side, the SDK provides Protected Resource Metadata, Bearer
 challenge response helpers, and a request guard for Ktor. Applications still
@@ -176,6 +178,49 @@ Generate `state` with cryptographically secure random bytes and verify the
 returned redirect state before exchanging the code. The sample leaves browser
 launching and callback handling to the application because desktop, CLI,
 server-side, and mobile hosts need different redirect handling.
+
+## Client Registration
+
+MCP authorization supports multiple client registration approaches. Prefer
+pre-registered credentials when available. If the authorization server
+advertises Client ID Metadata Document support, clients should prefer that
+approach. Dynamic Client Registration is a fallback when the server advertises
+a `registration_endpoint` in authorization server metadata.
+
+```kotlin
+import io.ktor.client.HttpClient
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthDynamicClientRegistrationRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenEndpointAuthMethod
+import io.modelcontextprotocol.kotlin.sdk.client.auth.discoverMcpOAuthMetadata
+import io.modelcontextprotocol.kotlin.sdk.client.auth.registerMcpOAuthClient
+
+suspend fun registerClientIfNeeded(
+    httpClient: HttpClient,
+    serverUrl: String,
+): String {
+    val discovery = discoverMcpOAuthMetadata(httpClient, serverUrl)
+    val registrationEndpoint = discovery.authorizationServerMetadata.registrationEndpoint
+        ?: error("Authorization server does not advertise dynamic registration")
+
+    val registration = registerMcpOAuthClient(
+        httpClient = httpClient,
+        registrationEndpoint = registrationEndpoint,
+        request = McpOAuthDynamicClientRegistrationRequest(
+            clientName = "Example MCP Client",
+            redirectUris = listOf("http://127.0.0.1:3000/callback"),
+            tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.None,
+            clientUri = "https://app.example.com",
+            scope = "tools:call",
+        ),
+    )
+
+    return registration.clientId
+}
+```
+
+Store returned `client_secret` values in OS or service secret storage. Dynamic
+registration is optional in MCP and should not replace Client ID Metadata
+Documents when an authorization server supports them.
 
 ## Refresh Tokens
 

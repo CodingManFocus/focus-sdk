@@ -7,23 +7,34 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
+import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
 import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
 
 /** Capability extension identifier for OAuth client credentials. */
 public const val MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION: String = "io.modelcontextprotocol/oauth-client-credentials"
@@ -164,6 +175,39 @@ public data class McpOAuthClientCredentials(public val clientId: String, public 
 public fun interface McpOAuthClientAssertionProvider {
     public suspend fun assertion(): String
 }
+
+/**
+ * Client metadata used for OAuth Dynamic Client Registration.
+ */
+public data class McpOAuthDynamicClientRegistrationRequest(
+    public val clientName: String,
+    public val redirectUris: List<String>,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.None,
+    public val grantTypes: List<String> = listOf("authorization_code"),
+    public val responseTypes: List<String> = listOf("code"),
+    public val scope: String? = null,
+    public val clientUri: String? = null,
+    public val logoUri: String? = null,
+    public val jwksUri: String? = null,
+    public val extraFields: JsonObject = JsonObject(emptyMap()),
+) {
+    init {
+        require(clientName.isNotBlank()) { "clientName must not be blank" }
+        require(redirectUris.isNotEmpty()) { "redirectUris must not be empty" }
+    }
+}
+
+/**
+ * OAuth Dynamic Client Registration response.
+ */
+public data class McpOAuthDynamicClientRegistrationResponse(
+    public val clientId: String,
+    public val clientSecret: String? = null,
+    public val clientSecretExpiresAt: Long? = null,
+    public val registrationAccessToken: String? = null,
+    public val registrationClientUri: String? = null,
+    public val raw: JsonObject,
+)
 
 /**
  * Parameters for exchanging an MCP OAuth authorization code for tokens.
@@ -391,6 +435,35 @@ public fun selectMcpOAuthTokenEndpointAuthMethod(
             "No supported token endpoint auth method for advertised methods " +
                 "${metadata.tokenEndpointAuthMethodsSupported}",
         )
+}
+
+/**
+ * Registers an OAuth client using a discovered Dynamic Client Registration endpoint.
+ */
+public suspend fun registerMcpOAuthClient(
+    httpClient: HttpClient,
+    registrationEndpoint: String,
+    request: McpOAuthDynamicClientRegistrationRequest,
+): McpOAuthDynamicClientRegistrationResponse {
+    val response = httpClient.post(registrationEndpoint) {
+        setBody(TextContent(request.toJsonObject().toString(), ContentType.Application.Json))
+    }
+    val body = response.bodyAsText()
+    val json = try {
+        McpJson.parseToJsonElement(body).jsonObject
+    } catch (e: Exception) {
+        throw McpOAuthException("Failed to parse client registration response from $registrationEndpoint", e)
+    }
+
+    val responseError = json.stringOrNull("error")
+    if (!response.status.isSuccess() || responseError != null) {
+        val errorDescription = json.stringOrNull("error_description")
+        val errorDetail = listOfNotNull(responseError, errorDescription).joinToString(": ")
+            .ifEmpty { body }
+        throw McpOAuthException("Client registration failed (${response.status}): $errorDetail")
+    }
+
+    return json.toMcpOAuthDynamicClientRegistrationResponse()
 }
 
 /**
@@ -764,8 +837,41 @@ private fun JsonObject.toMcpOAuthTokenResponse(): McpOAuthTokenResponse = McpOAu
     raw = this,
 )
 
+private fun McpOAuthDynamicClientRegistrationRequest.toJsonObject(): JsonObject = buildJsonObject {
+    extraFields.forEach { (key, value) -> put(key, value) }
+    put("client_name", clientName)
+    putJsonArray("redirect_uris", redirectUris)
+    put("token_endpoint_auth_method", tokenEndpointAuthMethod.wireValue)
+    putJsonArray("grant_types", grantTypes)
+    putJsonArray("response_types", responseTypes)
+    scope?.let { put("scope", it) }
+    clientUri?.let { put("client_uri", it) }
+    logoUri?.let { put("logo_uri", it) }
+    jwksUri?.let { put("jwks_uri", it) }
+}
+
+private fun JsonObject.toMcpOAuthDynamicClientRegistrationResponse(): McpOAuthDynamicClientRegistrationResponse =
+    McpOAuthDynamicClientRegistrationResponse(
+        clientId = stringOrNull("client_id")
+            ?: throw McpOAuthException("Client registration response does not include client_id"),
+        clientSecret = stringOrNull("client_secret"),
+        clientSecretExpiresAt = this["client_secret_expires_at"]?.jsonPrimitive?.longOrNull,
+        registrationAccessToken = stringOrNull("registration_access_token"),
+        registrationClientUri = stringOrNull("registration_client_uri"),
+        raw = this,
+    )
+
 private fun tokenEndpointAuthMethodFromWireValueOrNull(value: String): McpOAuthTokenEndpointAuthMethod? =
     McpOAuthTokenEndpointAuthMethod.entries.firstOrNull { it.wireValue == value }
+
+private fun JsonObjectBuilder.putJsonArray(key: String, values: List<String>) {
+    put(
+        key,
+        buildJsonArray {
+            values.forEach { add(JsonPrimitive(it)) }
+        },
+    )
+}
 
 private suspend fun submitMcpOAuthTokenRequest(
     httpClient: HttpClient,

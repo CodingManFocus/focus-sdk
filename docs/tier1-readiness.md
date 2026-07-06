@@ -107,13 +107,13 @@ Known gaps and risks:
   authorization request, authorization-code token exchange, refresh token
   primitives, client credentials token exchange/provider support,
   `private_key_jwt` assertion request support, JVM RS256 assertion signing,
-  and dynamic Streamable HTTP bearer-header coverage. Server auth now has
-  Protected Resource Metadata, Bearer challenge helpers, and request-level
-  bearer guard helpers, but the full SDK OAuth flow still needs end-to-end
-  transport integration.
+  dynamic client registration support, and dynamic Streamable HTTP
+  bearer-header coverage. Server auth now has Protected Resource Metadata,
+  Bearer challenge helpers, and request-level bearer guard helpers, but the
+  full SDK OAuth flow still needs end-to-end transport integration.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but
-  dynamic registration guidance, non-JVM JWT assertion signing guidance, and
-  full JWT/JWKS validation examples are still open.
+  Client ID Metadata Document guidance, non-JVM JWT assertion signing guidance,
+  and full JWT/JWKS validation examples are still open.
 - Feature docs are not yet comprehensive for URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
 - Maintenance evidence for standardized issue labels or GitHub issue types,
@@ -153,8 +153,8 @@ Known gaps and risks:
 
 - Add feature examples for elicitation, URL-mode elicitation, sampling with
   tools, Streamable HTTP resumability, and security-sensitive host validation.
-- Continue auth/OAuth parity from the current guide toward dynamic
-  registration guidance, non-JVM JWT assertion signing guidance, and JWT/JWKS
+- Continue auth/OAuth parity from the current guide toward Client ID Metadata
+  Document guidance, non-JVM JWT assertion signing guidance, and JWT/JWKS
   validation examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.

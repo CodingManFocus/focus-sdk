@@ -11,11 +11,16 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.modelcontextprotocol.kotlin.sdk.types.ClientCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.putJsonArray
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -180,6 +185,101 @@ class McpOAuthTest {
             capabilities.extensions?.keys,
         )
         assertEquals(buildJsonObject {}, capabilities.extensions?.get(MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION))
+    }
+
+    @Test
+    fun `should register dynamic oauth client`() = runTest {
+        var capturedBody: String? = null
+        var capturedContentType: String? = null
+        val client = HttpClient(
+            MockEngine { request ->
+                val body = request.body as TextContent
+                capturedBody = body.text
+                capturedContentType = body.contentType.toString()
+                respondJson(
+                    """
+                    {
+                      "client_id": "registered-client",
+                      "client_secret": "registered-secret",
+                      "client_secret_expires_at": 0,
+                      "registration_access_token": "registration-token",
+                      "registration_client_uri": "https://auth.example.com/register/registered-client"
+                    }
+                    """.trimIndent(),
+                    status = HttpStatusCode.Created,
+                )
+            },
+        )
+
+        val response = registerMcpOAuthClient(
+            httpClient = client,
+            registrationEndpoint = "https://auth.example.com/register",
+            request = McpOAuthDynamicClientRegistrationRequest(
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+                scope = "tools:call",
+                clientUri = "https://app.example.com",
+                jwksUri = "https://app.example.com/jwks.json",
+            ),
+        )
+        val json = McpJson.parseToJsonElement(capturedBody!!).jsonObject
+
+        assertEquals("application/json", capturedContentType)
+        assertEquals("Example MCP Client", json["client_name"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf("http://127.0.0.1/callback"),
+            json["redirect_uris"]?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+        assertEquals("none", json["token_endpoint_auth_method"]?.jsonPrimitive?.content)
+        assertEquals(listOf("authorization_code"), json["grant_types"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertEquals(listOf("code"), json["response_types"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertEquals("tools:call", json["scope"]?.jsonPrimitive?.content)
+        assertEquals("https://app.example.com", json["client_uri"]?.jsonPrimitive?.content)
+        assertEquals("https://app.example.com/jwks.json", json["jwks_uri"]?.jsonPrimitive?.content)
+        assertEquals("registered-client", response.clientId)
+        assertEquals("registered-secret", response.clientSecret)
+        assertEquals(0L, response.clientSecretExpiresAt)
+        assertEquals("registration-token", response.registrationAccessToken)
+        assertEquals("https://auth.example.com/register/registered-client", response.registrationClientUri)
+    }
+
+    @Test
+    fun `should fail dynamic oauth client registration on oauth error response`() = runTest {
+        val client = HttpClient(
+            MockEngine {
+                respondJson(
+                    """{"error":"invalid_client_metadata","error_description":"bad redirect uri"}""",
+                    status = HttpStatusCode.BadRequest,
+                )
+            },
+        )
+
+        assertFailsWith<McpOAuthException> {
+            registerMcpOAuthClient(
+                client,
+                "https://auth.example.com/register",
+                McpOAuthDynamicClientRegistrationRequest(
+                    clientName = "Example MCP Client",
+                    redirectUris = listOf("http://127.0.0.1/callback"),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `should reject invalid dynamic oauth client registration request`() {
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthDynamicClientRegistrationRequest(
+                clientName = "",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthDynamicClientRegistrationRequest(
+                clientName = "Example MCP Client",
+                redirectUris = emptyList(),
+            )
+        }
     }
 
     @Test
