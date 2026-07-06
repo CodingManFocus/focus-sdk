@@ -376,6 +376,7 @@ public fun selectMcpOAuthTokenEndpointAuthMethod(
             -> clientSecret != null
 
             McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt -> clientAssertionProvider != null
+
             McpOAuthTokenEndpointAuthMethod.None -> clientSecret == null && clientAssertionProvider == null
         }
     }.ifEmpty {

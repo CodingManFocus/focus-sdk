@@ -39,8 +39,9 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
   signed JWT assertion.
 
 The SDK does not yet provide a complete browser callback server, persistent
-token vault, dynamic client registration client, or JWT client assertion
-builder.
+token vault, or dynamic client registration client. JVM clients can create
+RS256 `private_key_jwt` assertions with the SDK; other platforms or algorithms
+can still provide assertions through `McpOAuthClientAssertionProvider`.
 
 On the server side, the SDK provides Protected Resource Metadata, Bearer
 challenge response helpers, and a request guard for Ktor. Applications still
@@ -409,25 +410,27 @@ val transport = StreamableHttpClientTransport(
 )
 ```
 
-For `private_key_jwt` deployments, create the signed assertion with a dedicated
-OAuth/JWT library and pass a fresh assertion provider to the token request:
+For JVM `private_key_jwt` deployments using RS256 and an unencrypted PKCS#8
+private key, use `McpOAuthPrivateKeyJwtAssertionProvider`:
 
 ```kotlin
 import io.ktor.client.HttpClient
-import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientAssertionProvider
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsProvider
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentialsTokenRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthPrivateKeyJwtAssertionProvider
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenEndpointAuthMethod
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthPkcs8PrivateKeyFromPem
 
-val jwtAssertionProvider = McpOAuthClientAssertionProvider {
-    signJwtAssertion(
-        issuer = "my-service",
-        subject = "my-service",
-        audience = "https://auth.example.com/token",
-        lifetimeSeconds = 300,
-    )
-}
+val privateKey = mcpOAuthPkcs8PrivateKeyFromPem(
+    System.getenv("MCP_CLIENT_PRIVATE_KEY_PEM"),
+)
+val jwtAssertionProvider = McpOAuthPrivateKeyJwtAssertionProvider(
+    clientId = "my-service",
+    tokenEndpoint = "https://auth.example.com/token",
+    privateKey = privateKey,
+    keyId = "current-signing-key",
+)
 
 val jwtRequest = McpOAuthClientCredentialsTokenRequest(
     tokenEndpoint = "https://auth.example.com/token",
@@ -446,9 +449,11 @@ val jwtProvider = McpOAuthClientCredentialsProvider(
 ```
 
 The SDK sends the OAuth JWT bearer `client_assertion_type` and sends the
-provider result as `client_assertion`; it does not generate or sign the JWT.
-The assertion should be short-lived and include claims such as `iss`, `sub`,
-`aud`, `iat`, and `exp` as required by the authorization server.
+provider result as `client_assertion`. The JVM provider signs a short-lived
+assertion with `iss`, `sub`, `aud`, `iat`, `exp`, and `jti` claims. For
+non-JVM targets, encrypted keys, PKCS#1 keys, or algorithms beyond RS256,
+provide your own `McpOAuthClientAssertionProvider` backed by an OAuth/JWT
+library.
 
 The provider obtains a token before the first protected MCP request. If the
 server returns `401 Unauthorized`, it obtains a fresh client credentials token
