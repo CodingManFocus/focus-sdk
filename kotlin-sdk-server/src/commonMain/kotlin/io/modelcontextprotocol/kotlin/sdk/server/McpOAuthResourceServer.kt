@@ -35,6 +35,34 @@ public data class McpOAuthProtectedResourceMetadata(
 }
 
 /**
+ * Result of validating an MCP OAuth bearer token.
+ */
+public sealed class McpOAuthBearerTokenValidationResult {
+    /**
+     * The token is valid for this MCP server.
+     *
+     * @property scopes scopes granted by the token.
+     */
+    public data class Valid(public val scopes: Set<String> = emptySet()) : McpOAuthBearerTokenValidationResult()
+
+    /**
+     * The token is missing, expired, malformed, or not valid for this MCP server.
+     */
+    public data class Invalid
+    constructor(
+        public val error: String? = null,
+        public val errorDescription: String? = null,
+    ) : McpOAuthBearerTokenValidationResult()
+}
+
+/**
+ * Validates an access token and returns the token scopes when it is valid.
+ */
+public fun interface McpOAuthBearerTokenValidator {
+    public suspend fun validate(call: ApplicationCall, accessToken: String): McpOAuthBearerTokenValidationResult
+}
+
+/**
  * Returns the well-known path for OAuth Protected Resource Metadata for an MCP endpoint path.
  */
 public fun mcpOAuthProtectedResourceMetadataPath(mcpEndpointPath: String = "/mcp"): String {
@@ -142,6 +170,52 @@ public suspend fun ApplicationCall.respondMcpOAuthInsufficientScope(
     respond(HttpStatusCode.Forbidden)
 }
 
+/**
+ * Validates this request's Bearer token and responds with the appropriate MCP OAuth challenge on failure.
+ *
+ * Returns `true` when the route handler should continue. The supplied [validator]
+ * is responsible for token signature, issuer, audience, and expiry validation.
+ */
+public suspend fun ApplicationCall.requireMcpOAuthBearer(
+    resourceMetadataUrl: String,
+    requiredScopes: Set<String> = emptySet(),
+    validator: McpOAuthBearerTokenValidator,
+): Boolean {
+    val accessToken = mcpOAuthBearerToken()
+    if (accessToken == null) {
+        respondMcpOAuthUnauthorized(
+            resourceMetadataUrl = resourceMetadataUrl,
+            scope = requiredScopes.takeIf { it.isNotEmpty() }?.joinToString(" "),
+        )
+        return false
+    }
+
+    return when (val result = validator.validate(this, accessToken)) {
+        is McpOAuthBearerTokenValidationResult.Valid -> {
+            val missingScopes = requiredScopes - result.scopes
+            if (missingScopes.isEmpty()) {
+                true
+            } else {
+                respondMcpOAuthInsufficientScope(
+                    resourceMetadataUrl = resourceMetadataUrl,
+                    scope = requiredScopes.joinToString(" "),
+                )
+                false
+            }
+        }
+
+        is McpOAuthBearerTokenValidationResult.Invalid -> {
+            respondMcpOAuthUnauthorized(
+                resourceMetadataUrl = resourceMetadataUrl,
+                scope = requiredScopes.takeIf { it.isNotEmpty() }?.joinToString(" "),
+                error = result.error,
+                errorDescription = result.errorDescription,
+            )
+            false
+        }
+    }
+}
+
 private fun String.wwwAuthenticateQuoted(): String = buildString {
     append('"')
     this@wwwAuthenticateQuoted.forEach { char ->
@@ -152,4 +226,11 @@ private fun String.wwwAuthenticateQuoted(): String = buildString {
         }
     }
     append('"')
+}
+
+private fun ApplicationCall.mcpOAuthBearerToken(): String? {
+    val authorization = request.headers[HttpHeaders.Authorization]?.trim() ?: return null
+    val prefix = "Bearer "
+    if (!authorization.startsWith(prefix, ignoreCase = true)) return null
+    return authorization.drop(prefix.length).trim().takeIf { it.isNotEmpty() }
 }

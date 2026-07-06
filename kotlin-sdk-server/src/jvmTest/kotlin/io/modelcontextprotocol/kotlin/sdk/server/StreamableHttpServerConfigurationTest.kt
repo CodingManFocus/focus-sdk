@@ -4,10 +4,12 @@ import io.kotest.matchers.collections.shouldExist
 import io.kotest.matchers.collections.shouldHaveSize
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -23,6 +25,7 @@ import kotlin.test.assertFailsWith
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 private const val MCP_SERVER_PACKAGE = "io.modelcontextprotocol.kotlin.sdk.server"
+private const val RESOURCE_METADATA_URL = "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
 
 class StreamableHttpServerConfigurationTest {
 
@@ -159,7 +162,7 @@ class StreamableHttpServerConfigurationTest {
                 routing {
                     get("/mcp") {
                         call.respondMcpOAuthUnauthorized(
-                            resourceMetadataUrl = "https://mcp.example.com/.well-known/oauth-protected-resource/mcp",
+                            resourceMetadataUrl = RESOURCE_METADATA_URL,
                             scope = "tools:call",
                             error = "invalid_token",
                         )
@@ -185,7 +188,7 @@ class StreamableHttpServerConfigurationTest {
                 routing {
                     get("/mcp") {
                         call.respondMcpOAuthInsufficientScope(
-                            resourceMetadataUrl = "https://mcp.example.com/.well-known/oauth-protected-resource/mcp",
+                            resourceMetadataUrl = RESOURCE_METADATA_URL,
                             scope = "tools:call",
                             errorDescription = """requires "tools:call"""",
                         )
@@ -200,6 +203,145 @@ class StreamableHttpServerConfigurationTest {
                 """Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp", """ +
                     """scope="tools:call", error="insufficient_scope", """ +
                     """error_description="requires \"tools:call\""""",
+                response.headers[HttpHeaders.WWWAuthenticate],
+            )
+        }
+    }
+
+    @Test
+    fun `requireMcpOAuthBearer allows valid bearer token with required scopes`() {
+        testApplication {
+            application {
+                routing {
+                    get("/mcp") {
+                        if (!call.requireMcpOAuthBearer(
+                                resourceMetadataUrl = RESOURCE_METADATA_URL,
+                                requiredScopes = setOf("tools:call"),
+                                validator = McpOAuthBearerTokenValidator { _, accessToken ->
+                                    assertEquals("valid-token", accessToken)
+                                    McpOAuthBearerTokenValidationResult.Valid(
+                                        scopes = setOf("tools:call", "resources:read"),
+                                    )
+                                },
+                            )
+                        ) {
+                            return@get
+                        }
+                        call.respondText("ok")
+                    }
+                }
+            }
+
+            val response = client.get("/mcp") {
+                header(HttpHeaders.Authorization, "Bearer valid-token")
+            }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("ok", response.body<String>())
+        }
+    }
+
+    @Test
+    fun `requireMcpOAuthBearer rejects missing bearer token before handler`() {
+        var handlerCalled = false
+        testApplication {
+            application {
+                routing {
+                    get("/mcp") {
+                        if (!call.requireMcpOAuthBearer(
+                                resourceMetadataUrl = RESOURCE_METADATA_URL,
+                                requiredScopes = setOf("tools:call"),
+                                validator = McpOAuthBearerTokenValidator { _, _ ->
+                                    McpOAuthBearerTokenValidationResult.Valid(scopes = setOf("tools:call"))
+                                },
+                            )
+                        ) {
+                            return@get
+                        }
+                        handlerCalled = true
+                        call.respondText("ok")
+                    }
+                }
+            }
+
+            val response = client.get("/mcp")
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(false, handlerCalled)
+            assertEquals(
+                """Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp", """ +
+                    """scope="tools:call"""",
+                response.headers[HttpHeaders.WWWAuthenticate],
+            )
+        }
+    }
+
+    @Test
+    fun `requireMcpOAuthBearer rejects invalid bearer token`() {
+        testApplication {
+            application {
+                routing {
+                    get("/mcp") {
+                        if (!call.requireMcpOAuthBearer(
+                                resourceMetadataUrl = RESOURCE_METADATA_URL,
+                                validator = McpOAuthBearerTokenValidator { _, accessToken ->
+                                    assertEquals("bad-token", accessToken)
+                                    McpOAuthBearerTokenValidationResult.Invalid(
+                                        error = "invalid_token",
+                                        errorDescription = "expired",
+                                    )
+                                },
+                            )
+                        ) {
+                            return@get
+                        }
+                        call.respondText("ok")
+                    }
+                }
+            }
+
+            val response = client.get("/mcp") {
+                header(HttpHeaders.Authorization, "Bearer bad-token")
+            }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(
+                """Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp", """ +
+                    """error="invalid_token", error_description="expired"""",
+                response.headers[HttpHeaders.WWWAuthenticate],
+            )
+        }
+    }
+
+    @Test
+    fun `requireMcpOAuthBearer rejects valid bearer token with insufficient scopes`() {
+        testApplication {
+            application {
+                routing {
+                    get("/mcp") {
+                        if (!call.requireMcpOAuthBearer(
+                                resourceMetadataUrl = RESOURCE_METADATA_URL,
+                                requiredScopes = setOf("tools:call", "resources:read"),
+                                validator = McpOAuthBearerTokenValidator { _, _ ->
+                                    McpOAuthBearerTokenValidationResult.Valid(scopes = setOf("tools:call"))
+                                },
+                            )
+                        ) {
+                            return@get
+                        }
+                        call.respondText("ok")
+                    }
+                }
+            }
+
+            val response = client.get("/mcp") {
+                header(HttpHeaders.Authorization, "Bearer valid-token")
+            }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(
+                """Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp", """ +
+                    """scope="tools:call resources:read", error="insufficient_scope"""",
                 response.headers[HttpHeaders.WWWAuthenticate],
             )
         }

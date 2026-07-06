@@ -39,12 +39,13 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
   signed JWT assertion.
 
 The SDK does not yet provide a complete browser callback server, persistent
-token vault, dynamic client registration client, JWT client assertion builder,
-or server-side bearer-token validation middleware.
+token vault, dynamic client registration client, or JWT client assertion
+builder.
 
-On the server side, the SDK provides Protected Resource Metadata and Bearer
-challenge response helpers for Ktor. Applications still need to validate access
-tokens and enforce scopes before invoking MCP routes.
+On the server side, the SDK provides Protected Resource Metadata, Bearer
+challenge response helpers, and a request guard for Ktor. Applications still
+need to validate token signatures, issuers, audiences, and expiry in the
+supplied validator or in a reverse proxy.
 
 ## Client Authorization Code Flow
 
@@ -253,9 +254,10 @@ if (stepUpScope != null) {
 ## Server Responsibilities
 
 The Kotlin SDK exposes helpers for the MCP-specific resource-server pieces:
-serving OAuth Protected Resource Metadata and returning spec-shaped Bearer
-challenges. Token signature, issuer, audience, expiry, and scope validation
-remain application or reverse-proxy responsibilities.
+serving OAuth Protected Resource Metadata, returning spec-shaped Bearer
+challenges, and guarding Ktor route handlers. Token signature, issuer,
+audience, expiry, and claim validation remain application or reverse-proxy
+responsibilities.
 
 Register the Protected Resource Metadata endpoint alongside the MCP route:
 
@@ -273,8 +275,46 @@ mcpOAuthProtectedResourceMetadata(
 )
 ```
 
-In Ktor middleware or route guards, use the response helpers for authorization
-failures:
+In Ktor route handlers, use `requireMcpOAuthBearer` before processing the MCP
+request. The validator receives the raw access token and returns the granted
+scopes after it has validated the token for this MCP resource:
+
+```kotlin
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.modelcontextprotocol.kotlin.sdk.server.McpOAuthBearerTokenValidationResult
+import io.modelcontextprotocol.kotlin.sdk.server.McpOAuthBearerTokenValidator
+import io.modelcontextprotocol.kotlin.sdk.server.requireMcpOAuthBearer
+
+val resourceMetadataUrl =
+    "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+
+get("/mcp") {
+    if (!call.requireMcpOAuthBearer(
+            resourceMetadataUrl = resourceMetadataUrl,
+            requiredScopes = setOf("tools:call"),
+            validator = McpOAuthBearerTokenValidator { call, token ->
+                validateAccessTokenForMcpResource(call, token)
+            },
+        )
+    ) {
+        return@get
+    }
+
+    call.respondText("protected MCP request")
+}
+
+suspend fun validateAccessTokenForMcpResource(
+    call: io.ktor.server.application.ApplicationCall,
+    token: String,
+): McpOAuthBearerTokenValidationResult {
+    // Verify signature, issuer, audience, expiry, and claims here.
+    return McpOAuthBearerTokenValidationResult.Valid(scopes = setOf("tools:call"))
+}
+```
+
+For lower-level Ktor middleware or custom guards, use the response helpers for
+authorization failures:
 
 ```kotlin
 import io.modelcontextprotocol.kotlin.sdk.server.respondMcpOAuthInsufficientScope
@@ -295,8 +335,8 @@ call.respondMcpOAuthInsufficientScope(
 )
 ```
 
-A protected MCP server should add Ktor or reverse-proxy middleware before the
-MCP route that:
+A protected MCP server should add a Ktor guard or reverse-proxy middleware
+before the MCP route that:
 
 - Serves OAuth Protected Resource Metadata.
 - Returns `401 Unauthorized` with `WWW-Authenticate: Bearer` and
