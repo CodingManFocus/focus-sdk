@@ -476,9 +476,17 @@ public fun mcpOAuthStepUpScope(wwwAuthenticate: String?): String? {
 /**
  * Returns a request builder that applies a bearer token to every outgoing HTTP request.
  */
-public fun mcpBearerAuth(accessToken: String): HttpRequestBuilder.() -> Unit = {
+public fun mcpBearerAuth(accessToken: String): HttpRequestBuilder.() -> Unit = mcpBearerAuth { accessToken }
+
+/**
+ * Applies the current OAuth bearer token to an outgoing HTTP request.
+ *
+ * Use this overload when access tokens can change over the lifetime of a transport,
+ * for example after refreshing an expired token.
+ */
+public fun mcpBearerAuth(accessTokenProvider: () -> String): HttpRequestBuilder.() -> Unit = {
     headers.remove(HttpHeaders.Authorization)
-    headers.append(HttpHeaders.Authorization, "Bearer $accessToken")
+    headers.append(HttpHeaders.Authorization, "Bearer ${accessTokenProvider()}")
 }
 
 private suspend fun fetchFirstJsonObject(httpClient: HttpClient, urls: List<String>, description: String): JsonObject {

@@ -92,8 +92,9 @@ Known gaps and risks:
   `docs/conformance-status.md`; it must be refreshed after protocol, transport,
   auth, or conformance-runner changes.
 - Client auth now has initial reusable discovery, bearer-header, PKCE S256,
-  authorization request, authorization-code token exchange, and refresh token
-  primitives, but the full SDK OAuth flow still needs transport integration.
+  authorization request, authorization-code token exchange, refresh token
+  primitives, and dynamic Streamable HTTP bearer-header coverage, but the full
+  SDK OAuth flow still needs end-to-end transport integration.
 - Feature docs are not yet comprehensive for auth, URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
 - Tasks are experimental/extension work and should not block Tier 1 unless the

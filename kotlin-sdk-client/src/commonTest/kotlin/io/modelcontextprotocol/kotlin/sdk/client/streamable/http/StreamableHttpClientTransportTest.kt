@@ -10,6 +10,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandler
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.sse.SSE
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -19,6 +20,7 @@ import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpBearerAuth
 import io.modelcontextprotocol.kotlin.sdk.shared.TooLongFrameException
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
@@ -51,6 +53,7 @@ class StreamableHttpClientTransportTest {
 
     private fun createTransport(
         maxInlineSseEventSize: Int = 16 * 1024 * 1024,
+        requestBuilder: HttpRequestBuilder.() -> Unit = {},
         handler: MockRequestHandler,
     ): StreamableHttpClientTransport {
         val mockEngine = MockEngine(handler)
@@ -64,6 +67,7 @@ class StreamableHttpClientTransportTest {
             httpClient,
             url = "http://localhost:8080/mcp",
             maxInlineSseEventSize = maxInlineSseEventSize,
+            requestBuilder = requestBuilder,
         )
     }
 
@@ -101,6 +105,52 @@ class StreamableHttpClientTransportTest {
         transport.start()
         transport.send(message)
         transport.close()
+    }
+
+    @Test
+    fun `should apply bearer auth to streamable http post and delete requests`() = runTest {
+        val seenMethods = mutableListOf<HttpMethod>()
+        val sessionTerminated = CompletableDeferred<Unit>()
+        var accessToken = "token-initial"
+        val transport = createTransport(
+            requestBuilder = mcpBearerAuth { accessToken },
+        ) { request ->
+            seenMethods += request.method
+
+            when (request.method) {
+                HttpMethod.Post -> {
+                    assertEquals("Bearer token-initial", request.headers[HttpHeaders.Authorization])
+                    val body = (request.body as TextContent).text
+                    when {
+                        body.contains("initialize") -> respond(
+                            content = "",
+                            status = HttpStatusCode.OK,
+                            headers = headersOf("mcp-session-id", "auth-session-id"),
+                        )
+
+                        else -> error("Unexpected POST body: $body")
+                    }
+                }
+
+                HttpMethod.Delete -> {
+                    assertEquals("Bearer token-refreshed", request.headers[HttpHeaders.Authorization])
+                    sessionTerminated.complete(Unit)
+                    respond(content = "", status = HttpStatusCode.OK)
+                }
+
+                else -> error("Unexpected method: ${request.method}")
+            }
+        }
+
+        transport.start()
+        transport.send(JSONRPCRequest(id = "init", method = "initialize", params = buildJsonObject { }))
+        accessToken = "token-refreshed"
+        transport.terminateSession()
+        withTimeout(5_000) { sessionTerminated.await() }
+        transport.close()
+
+        assertTrue(seenMethods.contains(HttpMethod.Post))
+        assertTrue(seenMethods.contains(HttpMethod.Delete))
     }
 
     @Test
