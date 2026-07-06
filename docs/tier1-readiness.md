@@ -116,9 +116,10 @@ Known gaps and risks:
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but
   non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation
   examples are still open.
-- Feature docs are not yet comprehensive for URL-mode elicitation, sampling
-  with tools, and security constraints beyond the dedicated Streamable HTTP
-  and OAuth guides.
+- Feature docs are not yet comprehensive for tools structured output,
+  resources/templates/subscriptions, prompts/completion, roots, logging, and
+  pagination. Dedicated guides now cover OAuth, Streamable HTTP, elicitation,
+  and sampling.
 - Maintenance evidence for standardized issue labels or GitHub issue types,
   triage SLA, and critical bug SLA still needs to be documented or verified.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
@@ -154,8 +155,9 @@ Known gaps and risks:
 
 ### Phase 3: Documentation and Release Readiness
 
-- Add feature examples for elicitation, URL-mode elicitation, sampling with
-  tools, and security-sensitive host validation.
+- Add feature examples for tools structured output, resources/templates,
+  subscriptions, prompts/completion, roots, logging, pagination, and
+  security-sensitive host validation.
 - Continue auth/OAuth parity from the current guide toward non-JVM JWT
   assertion signing guidance and JWT signature/JWKS validation examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation

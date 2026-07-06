@@ -973,6 +973,8 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 - [Auth and OAuth guide](./docs/auth-oauth.md)
+- [Elicitation guide](./docs/elicitation.md)
+- [Sampling guide](./docs/sampling.md)
 - [Streamable HTTP guide](./docs/streamable-http.md)
 - [Conformance status](./docs/conformance-status.md)
 - [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)

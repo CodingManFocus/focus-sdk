@@ -70,8 +70,8 @@ Status legend:
 | Logging | Ready | Server logging notifications and client `setLoggingLevel`; README example. | Add level/filter guidance. |
 | Pagination | Ready | Cursor support in list operations; README pagination example. | Add conformance-backed examples for every paginated list. |
 | Roots | Ready | Client root registry and roots/list_changed notification; server `listRoots`; README example. | Add security guidance for root grants. |
-| Sampling | Ready | Server `createMessage`; client sampling handler and sampling-tools validation; README example. | Add a dedicated sampling-with-tools guide. |
-| Elicitation | Partial | Client/server surfaces include form and URL-mode elicitation and completion notification; README example covers both modes at a high level. | Add dedicated form-mode and URL-mode guides with security constraints. |
+| Sampling | Ready, keep fresh | Server `createMessage`; client sampling handler and sampling-tools validation; README example; `docs/sampling.md` covers client handlers, server requests, tool-enabled sampling, content blocks, and safety guidance. | Keep examples current after sampling type or validation changes. |
+| Elicitation | Ready, keep fresh | Client/server surfaces include form and URL-mode elicitation, completion notification, URL elicitation required errors, README example, and `docs/elicitation.md` security guidance. | Keep examples current after elicitation type or security changes. |
 | Authorization/OAuth | Partial | `McpOAuth.kt` includes protected-resource discovery, authorization-server discovery, Client ID Metadata Document JSON generation, dynamic client registration, PKCE S256, authorization URL building, authorization-code token exchange, refresh-token exchange, expiry-aware token snapshot/restore helpers, bearer request helpers, client credentials token exchange, `private_key_jwt` assertion requests, JVM RS256 assertion signing, and Ktor bearer providers. Server helpers cover Protected Resource Metadata endpoints, Bearer challenge responses, request-level bearer guards, and verified JWT claims validation. `docs/auth-oauth.md` documents the current client flows and server responsibilities. | Add non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation examples. |
 | Streamable HTTP transport | Ready, keep fresh | Client and server transports support protocol headers, JSON/SSE responses, session handling, resumability hooks, retry handling, DNS rebinding controls, request-size limits, and `docs/streamable-http.md` guidance for deployment and security. | Keep conformance coverage current after transport changes. |
 | Stdio transport | Ready | Client/server stdio transports and tests; README examples. | Keep lifecycle/error-handling tests current. |
@@ -82,7 +82,7 @@ Status legend:
 | Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
-| Documentation coverage | Partial | README has broad examples for server/client features and transports. | Split README examples into feature docs for auth, elicitation, sampling tools, transport resumability, and security. |
+| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, sampling, and Streamable HTTP. | Add dedicated guides for tools structured output, resources/templates/subscriptions, prompts/completion, roots, logging, and pagination. |
 | Maintenance labels and SLAs | Gap | No repository-local evidence that issue labels/types and SLA process match Tier 1 reporting requirements. | Add issue label policy or verify GitHub issue types/labels before Tier request. |
 
 ## Priority Slices
@@ -90,9 +90,9 @@ Status legend:
 1. Auth/OAuth parity:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
-2. Elicitation and sampling guides:
-   separate form-mode elicitation, URL-mode elicitation, sampling, and
-   sampling-with-tools into focused examples.
+2. Remaining feature guides:
+   add focused guides for tools structured output, resources/templates,
+   subscriptions, prompts/completion, roots, logging, and pagination.
 3. Maintenance evidence:
    document issue labels or GitHub issue types, triage SLA, P0 handling, and
    critical bug resolution expectations.
