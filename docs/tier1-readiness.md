@@ -108,13 +108,13 @@ Known gaps and risks:
   primitives, client credentials token exchange/provider support,
   `private_key_jwt` assertion request support, JVM RS256 assertion signing,
   Client ID Metadata Document JSON generation, dynamic client registration
-  support, and dynamic Streamable HTTP bearer-header coverage. Server auth now
-  has Protected Resource Metadata, Bearer challenge helpers, and request-level
-  bearer guard helpers, but the full SDK OAuth flow still needs end-to-end
-  transport integration.
+  support, token snapshot/restore helpers, and dynamic Streamable HTTP
+  bearer-header coverage. Server auth now has Protected Resource Metadata,
+  Bearer challenge helpers, and request-level bearer guard helpers, but the
+  full SDK OAuth flow still needs end-to-end transport integration.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but
-  document hosting/token persistence guidance, non-JVM JWT assertion signing
-  guidance, and full JWT/JWKS validation examples are still open.
+  non-JVM JWT assertion signing guidance and full JWT/JWKS validation examples
+  are still open.
 - Feature docs are not yet comprehensive for URL-mode elicitation,
   sampling with tools, transport resumability, and security constraints.
 - Maintenance evidence for standardized issue labels or GitHub issue types,
@@ -154,9 +154,8 @@ Known gaps and risks:
 
 - Add feature examples for elicitation, URL-mode elicitation, sampling with
   tools, Streamable HTTP resumability, and security-sensitive host validation.
-- Continue auth/OAuth parity from the current guide toward document
-  hosting/token persistence guidance, non-JVM JWT assertion signing guidance,
-  and JWT/JWKS validation examples.
+- Continue auth/OAuth parity from the current guide toward non-JVM JWT
+  assertion signing guidance and JWT/JWKS validation examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1

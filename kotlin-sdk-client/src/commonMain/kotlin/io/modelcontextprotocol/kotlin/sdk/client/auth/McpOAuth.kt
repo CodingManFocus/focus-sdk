@@ -290,12 +290,50 @@ public data class McpOAuthTokenResponse(
 )
 
 /**
+ * Persistable OAuth token state that applications can write to an OS or service secret store.
+ */
+public data class McpOAuthTokenStoreSnapshot(
+    public val accessToken: String,
+    public val refreshToken: String? = null,
+    public val tokenType: String? = null,
+    public val expiresIn: Int? = null,
+    public val scope: String? = null,
+    public val raw: JsonObject = JsonObject(emptyMap()),
+) {
+    public fun toTokenResponse(): McpOAuthTokenResponse = McpOAuthTokenResponse(
+        accessToken = accessToken,
+        tokenType = tokenType,
+        expiresIn = expiresIn,
+        refreshToken = refreshToken,
+        scope = scope,
+        raw = raw,
+    )
+}
+
+/**
  * Mutable OAuth token state for long-lived MCP HTTP transports.
  *
  * The refresh token is retained when an update response omits a replacement
  * refresh token, matching common OAuth refresh-token rotation behavior.
  */
 public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
+    private var onUpdate: ((McpOAuthTokenStoreSnapshot) -> Unit)? = null
+    private var currentTokens: McpOAuthTokenResponse = initialTokens
+
+    public constructor(initialSnapshot: McpOAuthTokenStoreSnapshot) : this(initialSnapshot.toTokenResponse())
+
+    public constructor(
+        initialTokens: McpOAuthTokenResponse,
+        onUpdate: (McpOAuthTokenStoreSnapshot) -> Unit,
+    ) : this(initialTokens) {
+        this.onUpdate = onUpdate
+    }
+
+    public constructor(
+        initialSnapshot: McpOAuthTokenStoreSnapshot,
+        onUpdate: (McpOAuthTokenStoreSnapshot) -> Unit,
+    ) : this(initialSnapshot.toTokenResponse(), onUpdate)
+
     public var accessToken: String = initialTokens.accessToken
         private set
 
@@ -303,9 +341,20 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
         private set
 
     public fun update(tokens: McpOAuthTokenResponse) {
+        currentTokens = tokens.copy(refreshToken = tokens.refreshToken ?: refreshToken)
         accessToken = tokens.accessToken
-        refreshToken = tokens.refreshToken ?: refreshToken
+        refreshToken = currentTokens.refreshToken
+        onUpdate?.invoke(snapshot())
     }
+
+    public fun snapshot(): McpOAuthTokenStoreSnapshot = McpOAuthTokenStoreSnapshot(
+        accessToken = accessToken,
+        refreshToken = refreshToken,
+        tokenType = currentTokens.tokenType,
+        expiresIn = currentTokens.expiresIn,
+        scope = currentTokens.scope,
+        raw = currentTokens.raw,
+    )
 }
 
 /**

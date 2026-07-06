@@ -35,6 +35,7 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - Authorization-code URL construction.
 - Authorization-code token exchange.
 - Refresh-token exchange.
+- Token store snapshot/restore helpers for application-managed secure storage.
 - Bearer-token request decoration.
 - One automatic refresh/retry on `401 Unauthorized` for Ktor HTTP clients.
 - Client credentials token exchange and a Ktor bearer provider for
@@ -270,13 +271,47 @@ Documents when an authorization server supports them.
 ## Refresh Tokens
 
 If the authorization server issues a refresh token, keep it in a secure token
-store and use it to replace expired access tokens. The helper below installs a
-Ktor `HttpSend` interceptor that:
+store and use it to replace expired access tokens. `McpOAuthTokenStore` keeps
+runtime state in memory and can emit snapshots for application-managed
+persistence in OS keychains, credential managers, encrypted files, or service
+secret stores.
+
+```kotlin
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenResponse
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStoreSnapshot
+
+fun saveTokenSnapshotToSecretStorage(snapshot: McpOAuthTokenStoreSnapshot) {
+    // Write snapshot to platform or service secret storage.
+}
+
+fun tokenStoreFromSecretStorage(
+    saved: McpOAuthTokenStoreSnapshot?,
+    initialTokens: McpOAuthTokenResponse,
+): McpOAuthTokenStore =
+    if (saved != null) {
+        McpOAuthTokenStore(saved) { snapshot ->
+            saveTokenSnapshotToSecretStorage(snapshot)
+        }
+    } else {
+        McpOAuthTokenStore(initialTokens) { snapshot ->
+            saveTokenSnapshotToSecretStorage(snapshot)
+        }
+    }
+```
+
+Persist snapshots only in a secure store. Treat access tokens, refresh tokens,
+registration access tokens, and client secrets as credentials. For public
+clients, expect refresh-token rotation and persist the updated snapshot after
+each refresh.
+
+The helper below installs a Ktor `HttpSend` interceptor that:
 
 - Adds the current bearer token to each request.
 - On one `401 Unauthorized`, calls the supplied refresh callback if a refresh
   token exists.
-- Updates the in-memory `McpOAuthTokenStore`.
+- Updates the in-memory `McpOAuthTokenStore`; if the store was created with an
+  update callback, the refreshed snapshot can be persisted by the application.
 - Retries the original request once with the new access token.
 
 ```kotlin

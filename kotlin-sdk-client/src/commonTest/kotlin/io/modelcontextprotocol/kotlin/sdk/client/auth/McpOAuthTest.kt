@@ -979,6 +979,46 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should snapshot and restore token store`() {
+        val initial = McpOAuthTokenResponse(
+            accessToken = "access-1",
+            tokenType = "Bearer",
+            expiresIn = 300,
+            refreshToken = "refresh-1",
+            scope = "tools:call",
+            raw = buildJsonObject {
+                put("access_token", JsonPrimitive("access-1"))
+            },
+        )
+        val updates = mutableListOf<McpOAuthTokenStoreSnapshot>()
+        val tokenStore = McpOAuthTokenStore(initial, updates::add)
+
+        tokenStore.update(
+            McpOAuthTokenResponse(
+                accessToken = "access-2",
+                tokenType = "Bearer",
+                expiresIn = 600,
+                scope = "tools:call resources:read",
+                raw = buildJsonObject {
+                    put("access_token", JsonPrimitive("access-2"))
+                },
+            ),
+        )
+
+        val snapshot = tokenStore.snapshot()
+        val restored = McpOAuthTokenStore(snapshot)
+
+        assertEquals("access-2", snapshot.accessToken)
+        assertEquals("refresh-1", snapshot.refreshToken)
+        assertEquals("Bearer", snapshot.tokenType)
+        assertEquals(600, snapshot.expiresIn)
+        assertEquals("tools:call resources:read", snapshot.scope)
+        assertEquals("access-2", restored.accessToken)
+        assertEquals("refresh-1", restored.refreshToken)
+        assertEquals(listOf(snapshot), updates)
+    }
+
+    @Test
     fun `should fail when metadata cannot be discovered`() = runTest {
         val client = HttpClient(
             MockEngine {
