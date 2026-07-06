@@ -980,6 +980,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)
 - [Dependency update policy](./docs/dependency-update-policy.md)
+- [Maintenance policy](./docs/maintenance-policy.md)
 - [Tier 1 readiness roadmap](./docs/tier1-readiness.md)
 
 ## Contributing

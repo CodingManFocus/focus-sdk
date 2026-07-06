@@ -83,7 +83,7 @@ Status legend:
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
 | Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, sampling, and Streamable HTTP. | Add dedicated guides for tools structured output, resources/templates/subscriptions, prompts/completion, roots, logging, and pagination. |
-| Maintenance labels and SLAs | Gap | No repository-local evidence that issue labels/types and SLA process match Tier 1 reporting requirements. | Add issue label policy or verify GitHub issue types/labels before Tier request. |
+| Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
 
@@ -94,8 +94,8 @@ Status legend:
    add focused guides for tools structured output, resources/templates,
    subscriptions, prompts/completion, roots, logging, and pagination.
 3. Maintenance evidence:
-   document issue labels or GitHub issue types, triage SLA, P0 handling, and
-   critical bug resolution expectations.
+   collect operational evidence that issue triage and P0 resolution metrics
+   are being met against the published policy.
 4. Release readiness:
    keep `apiCheck`, conformance output, dependency policy, release policy, and
    this matrix current before a `1.0.0` release candidate.

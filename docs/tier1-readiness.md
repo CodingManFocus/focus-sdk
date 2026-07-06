@@ -88,6 +88,9 @@ Strong signals already present:
   an empty expected-failure baseline.
 - `docs/dependency-update-policy.md` defines dependency update cadence,
   validation expectations, and compatibility rules.
+- `docs/maintenance-policy.md` defines the issue triage SLA, P0 resolution
+  SLA, and Type/Status/Priority label taxonomy, and records the fork label
+  verification command.
 - `docs/compatibility-and-release-policy.md` defines supported MCP protocol
   versions, API compatibility expectations, release note contents, validation
   gates, and the `1.0.0` graduation requirement for Tier 1.
@@ -120,8 +123,10 @@ Known gaps and risks:
   resources/templates/subscriptions, prompts/completion, roots, logging, and
   pagination. Dedicated guides now cover OAuth, Streamable HTTP, elicitation,
   and sampling.
-- Maintenance evidence for standardized issue labels or GitHub issue types,
-  triage SLA, and critical bug SLA still needs to be documented or verified.
+- Maintenance labels and commitments are documented in
+  `docs/maintenance-policy.md`; operational history showing that triage and
+  P0 resolution metrics are being met still needs to be collected before a Tier
+  request.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
   SDK explicitly claims production support for the extension.
 - The conformance README must stay synchronized with
