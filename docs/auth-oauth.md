@@ -42,6 +42,10 @@ The SDK does not yet provide a complete browser callback server, persistent
 token vault, dynamic client registration client, JWT client assertion builder,
 or server-side bearer-token validation middleware.
 
+On the server side, the SDK provides Protected Resource Metadata and Bearer
+challenge response helpers for Ktor. Applications still need to validate access
+tokens and enforce scopes before invoking MCP routes.
+
 ## Client Authorization Code Flow
 
 Use this flow when an MCP client connects to a protected Streamable HTTP server
@@ -248,9 +252,51 @@ if (stepUpScope != null) {
 
 ## Server Responsibilities
 
-The Kotlin SDK currently exposes Streamable HTTP and SSE Ktor routes, but it
-does not yet ship a complete resource-server auth middleware. A protected MCP
-server should add Ktor or reverse-proxy middleware before the MCP route that:
+The Kotlin SDK exposes helpers for the MCP-specific resource-server pieces:
+serving OAuth Protected Resource Metadata and returning spec-shaped Bearer
+challenges. Token signature, issuer, audience, expiry, and scope validation
+remain application or reverse-proxy responsibilities.
+
+Register the Protected Resource Metadata endpoint alongside the MCP route:
+
+```kotlin
+import io.modelcontextprotocol.kotlin.sdk.server.McpOAuthProtectedResourceMetadata
+import io.modelcontextprotocol.kotlin.sdk.server.mcpOAuthProtectedResourceMetadata
+
+mcpOAuthProtectedResourceMetadata(
+    metadata = McpOAuthProtectedResourceMetadata(
+        resource = "https://mcp.example.com/mcp",
+        authorizationServers = listOf("https://auth.example.com"),
+        scopesSupported = listOf("tools:call", "resources:read"),
+    ),
+    mcpEndpointPath = "/mcp",
+)
+```
+
+In Ktor middleware or route guards, use the response helpers for authorization
+failures:
+
+```kotlin
+import io.modelcontextprotocol.kotlin.sdk.server.respondMcpOAuthInsufficientScope
+import io.modelcontextprotocol.kotlin.sdk.server.respondMcpOAuthUnauthorized
+
+val resourceMetadataUrl =
+    "https://mcp.example.com/.well-known/oauth-protected-resource/mcp"
+
+call.respondMcpOAuthUnauthorized(
+    resourceMetadataUrl = resourceMetadataUrl,
+    scope = "tools:call",
+    error = "invalid_token",
+)
+
+call.respondMcpOAuthInsufficientScope(
+    resourceMetadataUrl = resourceMetadataUrl,
+    scope = "tools:call",
+)
+```
+
+A protected MCP server should add Ktor or reverse-proxy middleware before the
+MCP route that:
 
 - Serves OAuth Protected Resource Metadata.
 - Returns `401 Unauthorized` with `WWW-Authenticate: Bearer` and

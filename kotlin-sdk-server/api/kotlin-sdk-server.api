@@ -63,6 +63,40 @@ public final class io/modelcontextprotocol/kotlin/sdk/server/KtorServerKt {
 	public static synthetic fun mcpStreamableHttp$default (Lio/ktor/server/application/Application;Ljava/lang/String;ZLjava/util/List;Ljava/util/List;Lio/modelcontextprotocol/kotlin/sdk/server/EventStore;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
+public final class io/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lkotlinx/serialization/json/JsonObject;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lkotlinx/serialization/json/JsonObject;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Lkotlinx/serialization/json/JsonObject;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lkotlinx/serialization/json/JsonObject;)Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;
+	public static synthetic fun copy$default (Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lkotlinx/serialization/json/JsonObject;ILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAuthorizationServers ()Ljava/util/List;
+	public final fun getExtraFields ()Lkotlinx/serialization/json/JsonObject;
+	public final fun getResource ()Ljava/lang/String;
+	public final fun getScopesSupported ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/server/McpOAuthResourceServerKt {
+	public static final fun mcpOAuthBearerChallenge (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun mcpOAuthBearerChallenge$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun mcpOAuthProtectedResourceMetadata (Lio/ktor/server/application/Application;Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;Ljava/lang/String;)V
+	public static final fun mcpOAuthProtectedResourceMetadata (Lio/ktor/server/routing/Route;Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;Ljava/lang/String;)V
+	public static synthetic fun mcpOAuthProtectedResourceMetadata$default (Lio/ktor/server/application/Application;Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;Ljava/lang/String;ILjava/lang/Object;)V
+	public static synthetic fun mcpOAuthProtectedResourceMetadata$default (Lio/ktor/server/routing/Route;Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;Ljava/lang/String;ILjava/lang/Object;)V
+	public static final fun mcpOAuthProtectedResourceMetadataPath (Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun mcpOAuthProtectedResourceMetadataPath$default (Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun respondMcpOAuthInsufficientScope (Lio/ktor/server/application/ApplicationCall;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun respondMcpOAuthInsufficientScope$default (Lio/ktor/server/application/ApplicationCall;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun respondMcpOAuthUnauthorized (Lio/ktor/server/application/ApplicationCall;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun respondMcpOAuthUnauthorized$default (Lio/ktor/server/application/ApplicationCall;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun toJsonObject (Lio/modelcontextprotocol/kotlin/sdk/server/McpOAuthProtectedResourceMetadata;)Lkotlinx/serialization/json/JsonObject;
+}
+
 public final class io/modelcontextprotocol/kotlin/sdk/server/RegisteredPrompt : io/modelcontextprotocol/kotlin/sdk/server/Feature {
 	public fun <init> (Lio/modelcontextprotocol/kotlin/sdk/types/Prompt;Lkotlin/jvm/functions/Function3;)V
 	public final fun component1 ()Lio/modelcontextprotocol/kotlin/sdk/types/Prompt;
