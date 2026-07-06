@@ -87,12 +87,18 @@ Strong signals already present:
   an empty expected-failure baseline.
 - `docs/dependency-update-policy.md` defines dependency update cadence,
   validation expectations, and compatibility rules.
+- `docs/compatibility-and-release-policy.md` defines supported MCP protocol
+  versions, API compatibility expectations, release note contents, validation
+  gates, and the `1.0.0` graduation requirement for Tier 1.
 
 Known gaps and risks:
 
 - The latest recorded conformance run is tracked in
   `docs/conformance-status.md`; it must be refreshed after protocol, transport,
   auth, or conformance-runner changes.
+- The current artifact version is `0.14.0`; the official Tier 1 stable release
+  criterion still requires a `1.0.0` or later release without a pre-release
+  identifier.
 - Client auth now has initial reusable discovery, bearer-header, PKCE S256,
   authorization request, authorization-code token exchange, refresh token
   primitives, and dynamic Streamable HTTP bearer-header coverage, but the full
@@ -137,7 +143,7 @@ Known gaps and risks:
   validation.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1
   blocking checklist.
-- Publish compatibility notes for supported MCP spec versions.
+- Keep compatibility notes current for supported MCP spec versions.
 - Keep public API dumps current with intentional API changes.
 - Run before each commit when relevant:
   - `./gradlew :kotlin-sdk-core:jvmTest`
