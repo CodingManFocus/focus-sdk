@@ -21,6 +21,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -185,6 +186,96 @@ class McpOAuthTest {
             capabilities.extensions?.keys,
         )
         assertEquals(buildJsonObject {}, capabilities.extensions?.get(MCP_OAUTH_CLIENT_CREDENTIALS_EXTENSION))
+    }
+
+    @Test
+    fun `should build client id metadata document json`() {
+        val json = buildMcpOAuthClientIdMetadataDocumentJson(
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com/oauth/client-metadata.json",
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+                clientUri = "https://app.example.com",
+                logoUri = "https://app.example.com/logo.png",
+                jwksUri = "https://app.example.com/jwks.json",
+                extraFields = buildJsonObject {
+                    put("contacts", JsonPrimitive("ops@example.com"))
+                    put("client_name", JsonPrimitive("overridden"))
+                },
+            ),
+        )
+
+        assertEquals("https://app.example.com/oauth/client-metadata.json", json["client_id"]?.jsonPrimitive?.content)
+        assertEquals("Example MCP Client", json["client_name"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf("http://127.0.0.1/callback"),
+            json["redirect_uris"]?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+        assertEquals("none", json["token_endpoint_auth_method"]?.jsonPrimitive?.content)
+        assertEquals(listOf("authorization_code"), json["grant_types"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertEquals(listOf("code"), json["response_types"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertEquals("https://app.example.com", json["client_uri"]?.jsonPrimitive?.content)
+        assertEquals("https://app.example.com/logo.png", json["logo_uri"]?.jsonPrimitive?.content)
+        assertEquals("https://app.example.com/jwks.json", json["jwks_uri"]?.jsonPrimitive?.content)
+        assertEquals("ops@example.com", json["contacts"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should detect client id metadata document support`() {
+        assertEquals(
+            true,
+            supportsMcpOAuthClientIdMetadataDocuments(
+                OAuthAuthorizationServerMetadata(
+                    clientIdMetadataDocumentSupported = true,
+                    raw = buildJsonObject {},
+                ),
+            ),
+        )
+        assertEquals(
+            false,
+            supportsMcpOAuthClientIdMetadataDocuments(
+                OAuthAuthorizationServerMetadata(
+                    clientIdMetadataDocumentSupported = false,
+                    raw = buildJsonObject {},
+                ),
+            ),
+        )
+        assertEquals(
+            false,
+            supportsMcpOAuthClientIdMetadataDocuments(OAuthAuthorizationServerMetadata(raw = buildJsonObject {})),
+        )
+    }
+
+    @Test
+    fun `should reject invalid client id metadata document`() {
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "http://app.example.com/oauth/client-metadata.json",
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com",
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com/oauth/client-metadata.json",
+                clientName = "",
+                redirectUris = listOf("http://127.0.0.1/callback"),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com/oauth/client-metadata.json",
+                clientName = "Example MCP Client",
+                redirectUris = emptyList(),
+            )
+        }
     }
 
     @Test

@@ -177,6 +177,28 @@ public fun interface McpOAuthClientAssertionProvider {
 }
 
 /**
+ * Client metadata hosted at an HTTPS `client_id` URL for OAuth Client ID Metadata Documents.
+ */
+public data class McpOAuthClientIdMetadataDocument(
+    public val clientId: String,
+    public val clientName: String,
+    public val redirectUris: List<String>,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.None,
+    public val grantTypes: List<String> = listOf("authorization_code"),
+    public val responseTypes: List<String> = listOf("code"),
+    public val clientUri: String? = null,
+    public val logoUri: String? = null,
+    public val jwksUri: String? = null,
+    public val extraFields: JsonObject = JsonObject(emptyMap()),
+) {
+    init {
+        require(clientName.isNotBlank()) { "clientName must not be blank" }
+        require(redirectUris.isNotEmpty()) { "redirectUris must not be empty" }
+        requireClientIdMetadataDocumentUrl(clientId)
+    }
+}
+
+/**
  * Client metadata used for OAuth Dynamic Client Registration.
  */
 public data class McpOAuthDynamicClientRegistrationRequest(
@@ -436,6 +458,18 @@ public fun selectMcpOAuthTokenEndpointAuthMethod(
                 "${metadata.tokenEndpointAuthMethodsSupported}",
         )
 }
+
+/**
+ * Returns true when authorization server metadata advertises Client ID Metadata Document support.
+ */
+public fun supportsMcpOAuthClientIdMetadataDocuments(metadata: OAuthAuthorizationServerMetadata): Boolean =
+    metadata.clientIdMetadataDocumentSupported == true
+
+/**
+ * Builds the JSON document to host at a Client ID Metadata Document URL.
+ */
+public fun buildMcpOAuthClientIdMetadataDocumentJson(document: McpOAuthClientIdMetadataDocument): JsonObject =
+    document.toJsonObject()
 
 /**
  * Registers an OAuth client using a discovered Dynamic Client Registration endpoint.
@@ -837,6 +871,19 @@ private fun JsonObject.toMcpOAuthTokenResponse(): McpOAuthTokenResponse = McpOAu
     raw = this,
 )
 
+private fun McpOAuthClientIdMetadataDocument.toJsonObject(): JsonObject = buildJsonObject {
+    extraFields.forEach { (key, value) -> put(key, value) }
+    put("client_id", clientId)
+    put("client_name", clientName)
+    putJsonArray("redirect_uris", redirectUris)
+    put("token_endpoint_auth_method", tokenEndpointAuthMethod.wireValue)
+    putJsonArray("grant_types", grantTypes)
+    putJsonArray("response_types", responseTypes)
+    clientUri?.let { put("client_uri", it) }
+    logoUri?.let { put("logo_uri", it) }
+    jwksUri?.let { put("jwks_uri", it) }
+}
+
 private fun McpOAuthDynamicClientRegistrationRequest.toJsonObject(): JsonObject = buildJsonObject {
     extraFields.forEach { (key, value) -> put(key, value) }
     put("client_name", clientName)
@@ -863,6 +910,14 @@ private fun JsonObject.toMcpOAuthDynamicClientRegistrationResponse(): McpOAuthDy
 
 private fun tokenEndpointAuthMethodFromWireValueOrNull(value: String): McpOAuthTokenEndpointAuthMethod? =
     McpOAuthTokenEndpointAuthMethod.entries.firstOrNull { it.wireValue == value }
+
+private fun requireClientIdMetadataDocumentUrl(clientId: String) {
+    val url = Url(clientId)
+    require(url.protocol.name == "https") { "clientId metadata document URL must use https" }
+    require(url.encodedPath.isNotBlank() && url.encodedPath != "/") {
+        "clientId metadata document URL must include a path component"
+    }
+}
 
 private fun JsonObjectBuilder.putJsonArray(key: String, values: List<String>) {
     put(

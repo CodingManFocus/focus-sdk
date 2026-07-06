@@ -27,6 +27,8 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - `WWW-Authenticate` parsing.
 - OAuth Protected Resource Metadata discovery.
 - OAuth Authorization Server Metadata and OIDC discovery.
+- Client ID Metadata Document JSON generation when an authorization server
+  advertises `client_id_metadata_document_supported`.
 - Dynamic client registration requests when an authorization server advertises
   a `registration_endpoint`.
 - PKCE S256 code verifier/challenge generation.
@@ -186,6 +188,49 @@ pre-registered credentials when available. If the authorization server
 advertises Client ID Metadata Document support, clients should prefer that
 approach. Dynamic Client Registration is a fallback when the server advertises
 a `registration_endpoint` in authorization server metadata.
+
+For the common no-prior-relationship case, host a Client ID Metadata Document at
+an HTTPS URL and use that URL as the OAuth `client_id`. The SDK validates the
+basic MCP requirements and builds the JSON document; the application still owns
+publishing it at that exact URL with appropriate HTTP caching.
+
+```kotlin
+import io.ktor.client.HttpClient
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientIdMetadataDocument
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenEndpointAuthMethod
+import io.modelcontextprotocol.kotlin.sdk.client.auth.buildMcpOAuthClientIdMetadataDocumentJson
+import io.modelcontextprotocol.kotlin.sdk.client.auth.discoverMcpOAuthMetadata
+import io.modelcontextprotocol.kotlin.sdk.client.auth.supportsMcpOAuthClientIdMetadataDocuments
+
+suspend fun clientIdForServer(
+    httpClient: HttpClient,
+    serverUrl: String,
+): String {
+    val discovery = discoverMcpOAuthMetadata(httpClient, serverUrl)
+    if (supportsMcpOAuthClientIdMetadataDocuments(discovery.authorizationServerMetadata)) {
+        val metadata = McpOAuthClientIdMetadataDocument(
+            clientId = "https://app.example.com/oauth/client-metadata.json",
+            clientName = "Example MCP Client",
+            redirectUris = listOf("http://127.0.0.1:3000/callback"),
+            tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.None,
+            clientUri = "https://app.example.com",
+            logoUri = "https://app.example.com/logo.png",
+        )
+
+        val documentJson = buildMcpOAuthClientIdMetadataDocumentJson(metadata)
+        // Host documentJson at metadata.clientId before starting OAuth.
+        return metadata.clientId
+    }
+
+    error("Authorization server does not advertise Client ID Metadata Documents")
+}
+```
+
+The `client_id` URL must use HTTPS, include a path component, and the document's
+`client_id` field must match that URL exactly.
+
+Use Dynamic Client Registration only when Client ID Metadata Documents are not
+available and the authorization server advertises a `registration_endpoint`:
 
 ```kotlin
 import io.ktor.client.HttpClient
