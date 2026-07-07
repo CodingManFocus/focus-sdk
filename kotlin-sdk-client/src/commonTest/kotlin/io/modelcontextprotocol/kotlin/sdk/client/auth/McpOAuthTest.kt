@@ -118,6 +118,54 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should reject unsafe authorization request URLs`() {
+        assertFailsWith<IllegalArgumentException> {
+            buildMcpOAuthAuthorizationUrl(
+                McpOAuthAuthorizationRequest(
+                    authorizationEndpoint = "http://auth.example.com/authorize",
+                    clientId = "client",
+                    redirectUri = "http://127.0.0.1/callback",
+                    codeChallenge = "challenge",
+                    resource = "https://mcp.example.com/mcp",
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            buildMcpOAuthAuthorizationUrl(
+                McpOAuthAuthorizationRequest(
+                    authorizationEndpoint = "https://user:pass@auth.example.com/authorize",
+                    clientId = "client",
+                    redirectUri = "http://127.0.0.1/callback",
+                    codeChallenge = "challenge",
+                    resource = "https://mcp.example.com/mcp",
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            buildMcpOAuthAuthorizationUrl(
+                McpOAuthAuthorizationRequest(
+                    authorizationEndpoint = "https://auth.example.com/authorize",
+                    clientId = "client",
+                    redirectUri = "http://client.example.com/callback",
+                    codeChallenge = "challenge",
+                    resource = "https://mcp.example.com/mcp",
+                ),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            buildMcpOAuthAuthorizationUrl(
+                McpOAuthAuthorizationRequest(
+                    authorizationEndpoint = "https://auth.example.com/authorize",
+                    clientId = "client",
+                    redirectUri = "https://user:pass@client.example.com/callback",
+                    codeChallenge = "challenge",
+                    resource = "https://mcp.example.com/mcp",
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `should parse authorization callback and verify state`() {
         val callback = parseMcpOAuthAuthorizationCallback(
             callbackUrl = "http://127.0.0.1/callback?code=code-123&state=state-123&iss=https%3A%2F%2Fauth.example.com",
@@ -348,6 +396,20 @@ class McpOAuthTest {
                 redirectUris = emptyList(),
             )
         }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com/oauth/client-metadata.json",
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://client.example.com/callback"),
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthClientIdMetadataDocument(
+                clientId = "https://app.example.com/oauth/client-metadata.json",
+                clientName = "Example MCP Client",
+                redirectUris = listOf("mcp://client.example.com/callback"),
+            )
+        }
     }
 
     @Test
@@ -443,6 +505,16 @@ class McpOAuthTest {
                 redirectUris = emptyList(),
             )
         }
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthDynamicClientRegistrationRequest(
+                clientName = "Example MCP Client",
+                redirectUris = listOf("http://client.example.com/callback"),
+            )
+        }
+        McpOAuthDynamicClientRegistrationRequest(
+            clientName = "Example MCP Client",
+            redirectUris = listOf("https://client.example.com/callback"),
+        )
     }
 
     @Test

@@ -120,7 +120,10 @@ Known gaps and risks:
   helpers, request-level bearer guard helpers, and verified JWT claims
   validation helpers, plus insufficient-scope parsing and bounded step-up retry
   tracking. The full SDK OAuth flow still needs host-specific token vault
-  integration guidance where appropriate.
+  integration guidance where appropriate. OAuth helper validation now enforces
+  HTTPS authorization endpoints and HTTPS-or-loopback redirect URIs before
+  authorization URL construction, client metadata generation, or dynamic
+  registration requests.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, non-JVM
   JWT assertion provider wiring, JWKS publication, and JWT/JWKS verification
   responsibilities, but the full SDK OAuth flow still needs integration beyond

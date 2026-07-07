@@ -165,6 +165,10 @@ copy-to-clipboard or host-specific fallback. If your authorization server
 requires an exact pre-registered localhost redirect URI, start the receiver with
 the registered `port` and `path`.
 
+The authorization URL builder validates the MCP transport security rules before
+opening the browser: authorization endpoints must use HTTPS, and redirect URIs
+must use HTTPS or loopback HTTP (`localhost`, `127.0.0.1`, or `::1`).
+
 Persist token snapshots only in protected storage such as an OS keychain, a
 credential manager, or a service secret store. The JSON helper defines the SDK's
 portable snapshot format; it does not make plain files safe for bearer or
@@ -181,7 +185,9 @@ a `registration_endpoint` in authorization server metadata.
 For the common no-prior-relationship case, host a Client ID Metadata Document at
 an HTTPS URL and use that URL as the OAuth `client_id`. The SDK validates the
 basic MCP requirements and builds the JSON document; the application still owns
-publishing it at that exact URL with appropriate HTTP caching.
+publishing it at that exact URL with appropriate HTTP caching. Redirect URIs in
+client metadata and dynamic registration requests are also validated as HTTPS or
+loopback HTTP before JSON is generated or submitted.
 
 ```kotlin
 import io.ktor.client.HttpClient

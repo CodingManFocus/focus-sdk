@@ -274,6 +274,7 @@ public data class McpOAuthClientIdMetadataDocument(
     init {
         require(clientName.isNotBlank()) { "clientName must not be blank" }
         require(redirectUris.isNotEmpty()) { "redirectUris must not be empty" }
+        redirectUris.forEach(::requireMcpOAuthRedirectUri)
         requireClientIdMetadataDocumentUrl(clientId)
     }
 }
@@ -296,6 +297,7 @@ public data class McpOAuthDynamicClientRegistrationRequest(
     init {
         require(clientName.isNotBlank()) { "clientName must not be blank" }
         require(redirectUris.isNotEmpty()) { "redirectUris must not be empty" }
+        redirectUris.forEach(::requireMcpOAuthRedirectUri)
     }
 }
 
@@ -625,6 +627,9 @@ public fun requireMcpPkceS256Support(metadata: OAuthAuthorizationServerMetadata)
  * Builds an MCP OAuth authorization URL for an authorization-code request.
  */
 public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest): String {
+    requireMcpOAuthHttpsEndpoint(request.authorizationEndpoint, "OAuth authorization endpoint")
+    requireMcpOAuthRedirectUri(request.redirectUri)
+
     val builder = URLBuilder(request.authorizationEndpoint)
     builder.parameters.append("response_type", "code")
     builder.parameters.append("client_id", request.clientId)
@@ -1344,6 +1349,41 @@ private fun requireClientIdMetadataDocumentUrl(clientId: String) {
     require(url.encodedPath.isNotBlank() && url.encodedPath != "/") {
         "clientId metadata document URL must include a path component"
     }
+}
+
+private fun requireMcpOAuthHttpsEndpoint(value: String, description: String) {
+    val url = Url(value)
+    require(url.protocol.name == "https" && url.host.isNotBlank()) {
+        "$description must use https and include a host"
+    }
+    require(!authorityHasUserInfo(value)) {
+        "$description must not include user info"
+    }
+}
+
+private fun requireMcpOAuthRedirectUri(value: String) {
+    val url = Url(value)
+    val isHttps = url.protocol.name == "https"
+    val isLoopbackHttp = url.protocol.name == "http" && url.host.isMcpOAuthLoopbackHost()
+    require((isHttps || isLoopbackHttp) && url.host.isNotBlank()) {
+        "OAuth redirect URI must use https, or http for localhost, 127.0.0.1, or ::1"
+    }
+    require(!authorityHasUserInfo(value)) {
+        "OAuth redirect URI must not include user info"
+    }
+}
+
+private fun String.isMcpOAuthLoopbackHost(): Boolean = when (lowercase()) {
+    "localhost", "127.0.0.1", "::1", "[::1]" -> true
+    else -> false
+}
+
+private fun authorityHasUserInfo(value: String): Boolean {
+    val authorityStart = value.indexOf("://").takeIf { it >= 0 }?.plus(3) ?: return false
+    val authorityEnd = value.indexOfAny(charArrayOf('/', '?', '#'), startIndex = authorityStart)
+        .takeIf { it >= 0 }
+        ?: value.length
+    return '@' in value.substring(authorityStart, authorityEnd)
 }
 
 private fun JsonObjectBuilder.putJsonArray(key: String, values: List<String>) {
