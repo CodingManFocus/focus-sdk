@@ -48,6 +48,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.modelcontextprotocol.kotlin.sdk.types.toJSON
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -339,14 +340,11 @@ class StreamableHttpServerTransportTest {
         val results = responses.map { it.result }
         results.shouldContainAll(firstResult, secondResult)
 
-        // Check responses' order
-
-        // TODO Uncomment when fixed https://github.com/modelcontextprotocol/kotlin-sdk/issues/548
-        /*assertEquals(listOf(firstRequest.id, secondRequest.id), responses.map { it.id })
-        val firstMeta = (responses[0] as ListToolsResult).meta
-        val secondMeta = (responses[1] as ListResourcesResult).meta
+        assertEquals(listOf(firstRequest.id, secondRequest.id), responses.map { it.id })
+        val firstMeta = (responses[0].result as ListToolsResult).meta
+        val secondMeta = (responses[1].result as ListResourcesResult).meta
         assertEquals("first", firstMeta?.get("label")?.jsonPrimitive?.content)
-        assertEquals("second", secondMeta?.get("label")?.jsonPrimitive?.content)*/
+        assertEquals("second", secondMeta?.get("label")?.jsonPrimitive?.content)
     }
 
     @ParameterizedTest

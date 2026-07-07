@@ -174,6 +174,7 @@ public class StreamableHttpServerTransport(private val configuration: Configurat
     private val streamsMapping: ConcurrentMap<String, SessionContext> = ConcurrentMap()
     private val requestToStreamMapping: ConcurrentMap<RequestId, String> = ConcurrentMap()
     private val requestToResponseMapping: ConcurrentMap<RequestId, JSONRPCMessage> = ConcurrentMap()
+    private val streamToRequestIdsMapping: ConcurrentMap<String, List<RequestId>> = ConcurrentMap()
 
     private val sessionMutex = Mutex()
     private val streamMutex = Mutex()
@@ -263,7 +264,9 @@ public class StreamableHttpServerTransport(private val configuration: Configurat
         }
 
         requestToResponseMapping[responseRequestId!!] = message
-        val relatedIds = requestToStreamMapping.filterValues { it == streamId }.keys
+        val relatedIds =
+            streamToRequestIdsMapping[streamId]
+                ?: requestToStreamMapping.filterValues { it == streamId }.keys.toList()
 
         if (relatedIds.any { it !in requestToResponseMapping }) return
 
@@ -289,6 +292,7 @@ public class StreamableHttpServerTransport(private val configuration: Configurat
                 requestToResponseMapping.remove(requestId)
                 requestToStreamMapping.remove(requestId)
             }
+            streamToRequestIdsMapping.remove(streamId)
         }
     }
 
@@ -304,6 +308,7 @@ public class StreamableHttpServerTransport(private val configuration: Configurat
                 streamsMapping.clear()
                 requestToStreamMapping.clear()
                 requestToResponseMapping.clear()
+                streamToRequestIdsMapping.clear()
                 invokeOnCloseCallback()
             }
         }
@@ -431,9 +436,14 @@ public class StreamableHttpServerTransport(private val configuration: Configurat
 
             streamMutex.withLock {
                 streamsMapping[streamId] = SessionContext(session, call)
-                messages.filterIsInstance<JSONRPCRequest>().forEach { requestToStreamMapping[it.id] = streamId }
+                val requestIds = messages.filterIsInstance<JSONRPCRequest>().map { it.id }
+                streamToRequestIdsMapping[streamId] = requestIds
+                requestIds.forEach { requestToStreamMapping[it] = streamId }
             }
-            call.coroutineContext.job.invokeOnCompletion { streamsMapping.remove(streamId) }
+            call.coroutineContext.job.invokeOnCompletion {
+                streamsMapping.remove(streamId)
+                streamToRequestIdsMapping.remove(streamId)
+            }
 
             messages.forEach { message -> _onMessage(message) }
         } catch (e: CancellationException) {
