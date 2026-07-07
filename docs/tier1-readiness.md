@@ -116,9 +116,10 @@ Known gaps and risks:
   Bearer challenge helpers, request-level bearer guard helpers, and verified
   JWT claims validation helpers, but the full SDK OAuth flow still needs
   end-to-end transport integration.
-- `docs/auth-oauth.md` now documents the current OAuth helper flow, but
-  non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation
-  examples are still open.
+- `docs/auth-oauth.md` now documents the current OAuth helper flow, non-JVM
+  JWT assertion provider wiring, JWKS publication, and JWT/JWKS verification
+  responsibilities, but the full SDK OAuth flow still needs end-to-end
+  integration beyond helper APIs.
 - Dedicated feature guides now cover OAuth, Streamable HTTP, elicitation, host
   validation, logging, pagination, prompts/completion,
   resources/templates/subscriptions, roots, sampling, and tools.
@@ -161,8 +162,8 @@ Known gaps and risks:
 
 - Keep security-sensitive host validation examples current as resource, roots,
   and tool host-integration APIs evolve.
-- Continue auth/OAuth parity from the current guide toward non-JVM JWT
-  assertion signing guidance and JWT signature/JWKS validation examples.
+- Continue auth/OAuth parity from the current helper APIs toward a complete
+  reusable client/server OAuth experience.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1

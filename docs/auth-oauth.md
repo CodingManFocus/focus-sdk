@@ -230,6 +230,26 @@ suspend fun clientIdForServer(
 The `client_id` URL must use HTTPS, include a path component, and the document's
 `client_id` field must match that URL exactly.
 
+If the client uses `private_key_jwt`, publish a JWKS URL in the metadata
+document so the authorization server can validate client assertions. Keep the
+private key in platform secret storage; publish only public keys.
+
+```kotlin
+val metadata = McpOAuthClientIdMetadataDocument(
+    clientId = "https://app.example.com/oauth/client-metadata.json",
+    clientName = "Example MCP Client",
+    redirectUris = listOf("http://127.0.0.1:3000/callback"),
+    tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt,
+    jwksUri = "https://app.example.com/oauth/jwks.json",
+)
+
+val documentJson = buildMcpOAuthClientIdMetadataDocumentJson(metadata)
+```
+
+Rotate keys by publishing both the old and new public keys in the JWKS during
+the overlap window, setting `kid` on assertions, and removing the old key only
+after all short-lived assertions have expired.
+
 Use Dynamic Client Registration only when Client ID Metadata Documents are not
 available and the authorization server advertises a `registration_endpoint`:
 
@@ -457,6 +477,42 @@ suspend fun validateAccessTokenForMcpResource(
 `scope` and `scp` claims. It intentionally does not parse compact JWTs, verify
 signatures, fetch JWKS documents, or decide whether an issuer is trusted.
 
+For JWT access tokens, the application or reverse proxy should fetch the
+authorization server JWKS, choose a key by `kid` and `alg`, verify the compact
+JWT signature, then pass the verified claims to `validateMcpOAuthJwtClaims`:
+
+```kotlin
+import kotlinx.serialization.json.JsonObject
+
+suspend fun validateAccessTokenWithJwks(
+    token: String,
+    issuer: String,
+    jwksUri: String,
+    resource: String,
+    currentEpochSeconds: Long,
+): McpOAuthBearerTokenValidationResult {
+    val jwks = fetchTrustedJwks(jwksUri)
+    val verifiedClaims: JsonObject = jwtVerifier.verifyAndReturnClaims(
+        token = token,
+        jwks = jwks,
+        expectedIssuer = issuer,
+        allowedAlgorithms = setOf("RS256"),
+    )
+
+    return validateMcpOAuthJwtClaims(
+        claims = verifiedClaims,
+        resource = resource,
+        currentEpochSeconds = currentEpochSeconds,
+        issuer = issuer,
+    )
+}
+```
+
+Cache JWKS according to HTTP cache headers, refresh on unknown `kid`, pin the
+trusted issuer to the authorization server chosen during discovery, reject
+unexpected algorithms, and do not accept tokens whose `aud` does not include
+the canonical MCP resource URI.
+
 For lower-level Ktor middleware or custom guards, use the response helpers for
 authorization failures:
 
@@ -594,9 +650,28 @@ val jwtProvider = McpOAuthClientCredentialsProvider(
 The SDK sends the OAuth JWT bearer `client_assertion_type` and sends the
 provider result as `client_assertion`. The JVM provider signs a short-lived
 assertion with `iss`, `sub`, `aud`, `iat`, `exp`, and `jti` claims. For
-non-JVM targets, encrypted keys, PKCS#1 keys, or algorithms beyond RS256,
-provide your own `McpOAuthClientAssertionProvider` backed by an OAuth/JWT
-library.
+non-JVM targets, encrypted keys, PKCS#1 keys, HSM-backed keys, or algorithms
+beyond RS256, provide your own `McpOAuthClientAssertionProvider` backed by an
+OAuth/JWT library available on that platform:
+
+```kotlin
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientAssertionProvider
+
+val assertionProvider = McpOAuthClientAssertionProvider {
+    platformJwtSigner.signClientAssertion(
+        issuer = "my-service",
+        subject = "my-service",
+        audience = "https://auth.example.com/token",
+        keyId = "current-signing-key",
+        expiresInSeconds = 300,
+    )
+}
+```
+
+The assertion provider must return a compact signed JWT each time it is called.
+Use the authorization server token endpoint as `aud`, keep assertions
+short-lived, include a unique `jti`, and align the `kid` with the public key in
+the metadata document's `jwks_uri`.
 
 The provider obtains a token before the first protected MCP request. If the
 server returns `401 Unauthorized`, it obtains a fresh client credentials token
