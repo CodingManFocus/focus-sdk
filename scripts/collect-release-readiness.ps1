@@ -147,6 +147,20 @@ $capabilityMatrix = Join-Path $root "docs/tier1-sdk-capability-matrix.md"
 $tierEvidenceIndex = Join-Path $root "docs/tier1-advancement-evidence.md"
 $releaseNotes = Join-Path $root "docs/release-notes.md"
 $maintenanceCollector = Join-Path $root "scripts/collect-maintenance-evidence.ps1"
+$featureDocumentationPaths = @(
+    "README.md",
+    "docs/auth-oauth.md",
+    "docs/streamable-http.md",
+    "docs/elicitation.md",
+    "docs/host-validation.md",
+    "docs/logging.md",
+    "docs/pagination.md",
+    "docs/prompts-completion.md",
+    "docs/resources.md",
+    "docs/roots.md",
+    "docs/sampling.md",
+    "docs/tools.md"
+)
 
 $gitHead = (& git rev-parse --short HEAD).Trim()
 $gitStatus = (& git status --short)
@@ -171,6 +185,7 @@ if ($supportedBlock.Success) {
     }
 }
 $supportedProtocols = @($supportedProtocols | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+$missingFeatureDocumentation = @($featureDocumentationPaths | Where-Object { -not (Test-Path (Join-Path $root $_)) })
 
 $conformanceText = Get-Content -Raw -Path $conformanceStatus
 $conformanceRevision = Get-RegexValue -Text $conformanceText -Pattern 'Verified revision:\s*`([^`]+)`'
@@ -220,6 +235,7 @@ Add-CheckResult -Checks $checks -Name "Capability matrix present" -Pass (Test-Pa
 Add-CheckResult -Checks $checks -Name "Tier advancement evidence index present" -Pass (Test-Path $tierEvidenceIndex) -Evidence $tierEvidenceIndex
 Add-CheckResult -Checks $checks -Name "Maintenance evidence present" -Pass (Test-Path $maintenanceEvidence) -Evidence $maintenanceEvidence
 Add-CheckResult -Checks $checks -Name "Release notes draft present" -Pass (Test-Path $releaseNotes) -Evidence $releaseNotes
+Add-CheckResult -Checks $checks -Name "Feature documentation inventory present" -Pass ($missingFeatureDocumentation.Count -eq 0) -Evidence $(if ($missingFeatureDocumentation.Count -eq 0) { $featureDocumentationPaths -join ", " } else { "missing=$($missingFeatureDocumentation -join ', ')" })
 
 $maintenanceCommand = ""
 $maintenanceResult = $null

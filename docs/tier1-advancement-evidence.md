@@ -46,6 +46,26 @@ Blocking items:
 | Standardized issue labels or issue types | `docs/maintenance-policy.md` and `docs/maintenance-evidence.md`. | Ready, keep fresh |
 | Release readiness gate results | `scripts/collect-release-readiness.ps1`. | Blocked until run with `-RunChecks -RunMaintenanceCheck` for a release candidate |
 
+## Feature Documentation Inventory
+
+The release readiness collector verifies that these documentation entry points
+exist before a report can support a Tier advancement request:
+
+| Area | Evidence |
+| --- | --- |
+| Overview and examples | `README.md` |
+| Authorization/OAuth | `docs/auth-oauth.md` |
+| Streamable HTTP | `docs/streamable-http.md` |
+| Elicitation | `docs/elicitation.md` |
+| Host validation and security guidance | `docs/host-validation.md` |
+| Logging | `docs/logging.md` |
+| Pagination | `docs/pagination.md` |
+| Prompts and completion | `docs/prompts-completion.md` |
+| Resources, templates, and subscriptions | `docs/resources.md` |
+| Roots | `docs/roots.md` |
+| Sampling | `docs/sampling.md` |
+| Tools | `docs/tools.md` |
+
 ## Required Final Evidence Commands
 
 Run these before opening an official Tier advancement issue:

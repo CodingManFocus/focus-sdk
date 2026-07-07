@@ -127,6 +127,8 @@ as a PASS/BLOCKED row in the Tier 1 release checks table.
 When `-RunChecks` or `-RunMaintenanceCheck` is omitted, the report records a
 BLOCKED row for the missing validation or maintenance gate so incomplete reports
 cannot be mistaken for Tier advancement evidence.
+The readiness report also checks that the feature documentation inventory listed
+in `docs/tier1-advancement-evidence.md` is present.
 
 The collector treats documentation, GitHub workflow, release-evidence script,
 and test source-set changes after the last recorded conformance run as
