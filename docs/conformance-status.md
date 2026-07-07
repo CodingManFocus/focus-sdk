@@ -2,20 +2,20 @@
 
 Last verified: 2026-07-07
 
-Verified revision: `9a5997a`
+Verified revision: `6c4d26f`
 
-Result artifact timestamp prefix: `2026-07-07T10-23Z`
+Result artifact timestamp prefix: `2026-07-07T11-31Z`
 
 Command:
 
 ```bash
-./conformance-test/run-conformance.sh all --verbose
+./conformance-test/run-conformance.sh all
 ```
 
 Executed on Windows through Git Bash:
 
 ```powershell
-& 'C:\Program Files\Git\usr\bin\bash.exe' -lc 'cd /e/focus-sdk && ./conformance-test/run-conformance.sh all --verbose'
+& 'C:\Program Files\Git\usr\bin\bash.exe' -lc 'cd /e/focus-sdk && ./conformance-test/run-conformance.sh all'
 ```
 
 Runner: `@modelcontextprotocol/conformance@0.1.16`
