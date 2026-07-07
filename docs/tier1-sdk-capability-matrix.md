@@ -68,7 +68,7 @@ Status legend:
 | Prompts | Ready, keep fresh | Server prompt registration; client list/get prompt; README examples; `docs/prompts-completion.md` covers prompt arguments, catalog notifications, client prompt calls, validation, and security guidance. | Keep examples current after prompt type or registry changes. |
 | Completion | Ready, keep fresh | Server completion capability, high-level `setCompletionHandler`, client `complete`, README example, and `docs/prompts-completion.md` coverage for prompt and resource-template completions. | Keep examples current after completion type or validation changes. |
 | Logging | Ready, keep fresh | Server logging notifications and client `setLoggingLevel`; README example; `docs/logging.md` covers capability declaration, client minimum levels, server notifications, client handlers, level filtering, and security guidance. | Keep examples current after logging type or filter changes. |
-| Pagination | Ready | Cursor support in list operations; README pagination example. | Add conformance-backed examples for every paginated list. |
+| Pagination | Ready, keep fresh | Cursor support in list operations; README pagination example; `docs/pagination.md` covers supported list operations, client loops, server cursors, invalid cursor handling, and cursor security guidance. | Keep examples current after pagination type or conformance changes. |
 | Roots | Ready, keep fresh | Client root registry and roots/list_changed notification; server `listRoots`; README example; `docs/roots.md` covers root grants, server requests, list-change notifications, `file://` validation, and security guidance. | Keep examples current after root type or capability changes. |
 | Sampling | Ready, keep fresh | Server `createMessage`; client sampling handler and sampling-tools validation; README example; `docs/sampling.md` covers client handlers, server requests, tool-enabled sampling, content blocks, and safety guidance. | Keep examples current after sampling type or validation changes. |
 | Elicitation | Ready, keep fresh | Client/server surfaces include form and URL-mode elicitation, completion notification, URL elicitation required errors, README example, and `docs/elicitation.md` security guidance. | Keep examples current after elicitation type or security changes. |
@@ -82,7 +82,7 @@ Status legend:
 | Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
-| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, logging, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Add a dedicated guide for pagination. |
+| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, logging, pagination, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Add security-sensitive host validation examples and keep feature guides current. |
 | Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
@@ -90,8 +90,9 @@ Status legend:
 1. Auth/OAuth parity:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
-2. Remaining feature guides:
-   add a focused guide for pagination.
+2. Security-sensitive examples:
+   add host validation examples for filesystem/resource access and other
+   security-sensitive integrations.
 3. Maintenance evidence:
    collect operational evidence that issue triage and P0 resolution metrics
    are being met against the published policy.
