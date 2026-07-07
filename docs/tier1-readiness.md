@@ -144,6 +144,17 @@ Known gaps and risks:
 
 ## Work Plan
 
+Immediate priority after the 2026-07-07 Tier 1 audit:
+
+1. Keep full conformance evidence current at HEAD.
+2. Prepare `1.0.0` release gates: API compatibility, release notes,
+   platform validation, and compatibility evidence.
+3. Collect operational evidence that issue triage and P0 resolution metrics are
+   being met.
+4. Limit further OAuth work to spec-required, conformance-relevant, or
+   Tier-1-SDK-precedented SDK surface. Treat host-specific token vaults as
+   integration guidance, not a Tier 1 blocker.
+
 ### Phase 1: Establish Evidence
 
 - Run `./conformance-test/run-conformance.sh list` and save the available
@@ -157,10 +168,12 @@ Known gaps and risks:
 ### Phase 2: Close Protocol and SDK Gaps
 
 - Fix every non-experimental conformance failure for `2025-11-25`.
-- Promote auth/OAuth conformance logic into reusable client/server SDK APIs
-  where the official spec expects SDK support; continue from client metadata
-  discovery, PKCE, token exchange, and refresh primitives toward complete
-  token lifecycle support.
+- Keep auth/OAuth conformance logic available as reusable client/server SDK
+  APIs where the official spec expects SDK support. Further OAuth work should be
+  limited to spec-required, conformance-relevant, or Tier-1-SDK-precedented
+  surface such as metadata discovery, PKCE, `resource` parameters, bearer
+  headers, refresh and step-up handling, server challenges and guards, and
+  examples.
 - Audit protocol type parity against the official schema reference.
 - Harden Streamable HTTP against conformance and production edge cases:
   resumability, polling disconnects, standalone GET stream behavior, session
@@ -172,8 +185,9 @@ Known gaps and risks:
 
 - Keep security-sensitive host validation examples current as resource, roots,
   and tool host-integration APIs evolve.
-- Continue auth/OAuth parity from the current flow and transport helpers toward
-  a complete reusable client/server OAuth experience.
+- Keep auth/OAuth docs aligned with the reusable SDK helpers and clearly mark
+  host-specific token vaults as application integration guidance rather than a
+  Tier 1 blocker.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1

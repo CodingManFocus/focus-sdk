@@ -60,7 +60,7 @@ Status legend:
 | --- | --- | --- | --- |
 | Official listing | Gap | Official SDK listing marks Kotlin as Tier 3. | Request tier advancement only after evidence is complete. |
 | Target protocol version | Ready | `LATEST_PROTOCOL_VERSION` is `2025-11-25`; supported versions are documented in `docs/compatibility-and-release-policy.md`. | Keep updated when the stable MCP spec changes. |
-| Applicable conformance | Ready, keep fresh | `docs/conformance-status.md` records a clean full run for server, client core, and client auth. | Refresh after protocol, transport, auth, or runner changes. |
+| Applicable conformance | Ready, keep fresh | `docs/conformance-status.md` records a clean full run at `9a5997a` for server, client core, and client auth. | Refresh after protocol, transport, auth, or runner changes. |
 | Client and server APIs | Ready | `Client` exposes typed operations for ping, prompts, resources, subscriptions, tools, completion, logging level, roots, and elicitation handlers; `Server` exposes registries and handlers for tools, prompts, resources, resource templates, sampling, roots, elicitation, logging, and notifications. | Add feature-specific guide pages beyond README. |
 | Protocol primitives | Ready | Core/shared types and `Protocol` cover JSON-RPC framing, lifecycle, ping, cancellation, progress, pagination, metadata, capabilities, and request correlation. | Continue schema parity audits against the stable spec. |
 | Tools | Ready, keep fresh | Server `addTool`/`removeTool`; client `listTools`/`callTool`; README examples; `docs/tools.md` covers structured output, output schemas, no-parameter schemas, catalog notifications, error handling, and security guidance. | Keep examples current after tool type or validation changes. |
@@ -87,12 +87,16 @@ Status legend:
 
 ## Priority Slices
 
-1. Auth/OAuth parity:
-   promote the remaining OAuth flow integration from helper APIs and examples
-   into a complete reusable client/server experience.
+1. Conformance and release readiness:
+   keep the full conformance run current at HEAD and prepare the `1.0.0`
+   release gates, including API compatibility, release notes, and platform
+   validation.
 2. Maintenance evidence:
    collect operational evidence that issue triage and P0 resolution metrics
    are being met against the published policy.
-3. Release readiness:
-   keep `apiCheck`, conformance output, dependency policy, release policy, and
-   this matrix current before a `1.0.0` release candidate.
+3. Auth/OAuth Tier scope:
+   keep OAuth work focused on spec and conformance requirements: Protected
+   Resource Metadata, authorization-server and OIDC discovery, PKCE, `resource`
+   parameters, bearer headers, refresh and step-up handling, server challenges
+   and guards, and docs/examples. Treat host-specific token-vault integration as
+   guidance rather than a Tier 1 blocker.
