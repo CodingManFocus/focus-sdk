@@ -155,7 +155,8 @@ Immediate priority after the 2026-07-07 Tier 1 audit:
 2. Prepare `1.0.0` release gates: API compatibility, release notes,
    platform validation, and compatibility evidence.
 3. Collect operational evidence that issue triage and P0 resolution metrics are
-   being met.
+   being met, and embed that evidence in release readiness reports with
+   `scripts/collect-release-readiness.ps1 -RunMaintenanceCheck`.
 4. Limit further OAuth work to spec-required, conformance-relevant, or
    Tier-1-SDK-precedented SDK surface. Treat host-specific token vaults as
    integration guidance, not a Tier 1 blocker.

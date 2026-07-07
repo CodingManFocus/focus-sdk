@@ -41,7 +41,7 @@ Known release blockers:
 
 - Publish a stable `1.0.0` or later artifact without a pre-release identifier.
 - Generate a release readiness report with
-  `scripts/collect-release-readiness.ps1 -RunChecks`.
+  `scripts/collect-release-readiness.ps1 -RunChecks -RunMaintenanceCheck`.
 - Preserve current full conformance evidence for all runtime-affecting changes.
 - Collect operational issue triage and P0 resolution evidence over time.
 - Open the official Tier advancement issue and receive SDK Working Group

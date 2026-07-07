@@ -109,8 +109,13 @@ For documentation-only changes, run at least `git diff --check`.
 Before a Tier 1 release candidate, generate a release readiness report:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-release-readiness.ps1 -RunChecks
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-release-readiness.ps1 -RunChecks -RunMaintenanceCheck -MaintenanceSince <yyyy-mm-dd>
 ```
+
+Use `-MaintenanceSince` for the operational evidence window included in the
+Tier request. The release readiness report embeds the maintenance collector
+output so issue-label, triage, and P0 evidence are captured with the release
+gate results.
 
 The collector treats documentation, GitHub workflow, and release-evidence script
 changes after the last recorded conformance run as evidence-only changes. Any

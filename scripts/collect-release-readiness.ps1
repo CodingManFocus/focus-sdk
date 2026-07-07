@@ -1,5 +1,8 @@
 param(
     [switch]$RunChecks,
+    [switch]$RunMaintenanceCheck,
+    [string]$MaintenanceRepo = "CodingManFocus/focus-sdk",
+    [string]$MaintenanceSince = "",
     [string]$OutFile = ""
 )
 
@@ -125,6 +128,7 @@ $dependencyPolicy = Join-Path $root "docs/dependency-update-policy.md"
 $tierRoadmap = Join-Path $root "docs/tier1-readiness.md"
 $capabilityMatrix = Join-Path $root "docs/tier1-sdk-capability-matrix.md"
 $releaseNotes = Join-Path $root "docs/release-notes.md"
+$maintenanceCollector = Join-Path $root "scripts/collect-maintenance-evidence.ps1"
 
 $gitHead = (& git rev-parse --short HEAD).Trim()
 $gitStatus = (& git status --short)
@@ -189,6 +193,26 @@ Add-CheckResult -Checks $checks -Name "Capability matrix present" -Pass (Test-Pa
 Add-CheckResult -Checks $checks -Name "Maintenance evidence present" -Pass (Test-Path $maintenanceEvidence) -Evidence $maintenanceEvidence
 Add-CheckResult -Checks $checks -Name "Release notes draft present" -Pass (Test-Path $releaseNotes) -Evidence $releaseNotes
 
+$maintenanceCommand = ""
+$maintenanceResult = $null
+if ($RunMaintenanceCheck) {
+    $maintenanceArguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $maintenanceCollector,
+        "-Repo",
+        $MaintenanceRepo
+    )
+    if (-not [string]::IsNullOrWhiteSpace($MaintenanceSince)) {
+        $maintenanceArguments += @("-Since", $MaintenanceSince)
+    }
+    $maintenanceCommand = "powershell $($maintenanceArguments -join ' ')"
+    $maintenanceResult = Invoke-Capture -FilePath "powershell" -Arguments $maintenanceArguments
+    Add-CheckResult -Checks $checks -Name "Maintenance collector run" -Pass ($maintenanceResult.ExitCode -eq 0) -Evidence "repo=$MaintenanceRepo; since=$MaintenanceSince; exit=$($maintenanceResult.ExitCode)"
+}
+
 $validationResults = @()
 if ($RunChecks) {
     $commands = @(
@@ -239,10 +263,25 @@ if ($RunChecks) {
     }
     $lines.Add("")
 } else {
-    $lines.Add("Validation commands were not run. Re-run with ``-RunChecks`` before using this report as release-candidate evidence.")
+    $lines.Add('Validation commands were not run. Re-run with `-RunChecks` before using this report as release-candidate evidence.')
     $lines.Add("")
 }
-$lines.Add("A Tier 1 request remains blocked until the artifact version is a published stable ``1.0.0`` or later release and all release validation gates pass.")
+if ($RunMaintenanceCheck) {
+    $lines.Add("## Maintenance Evidence")
+    $lines.Add("")
+    $lines.Add("Command: ``$maintenanceCommand``")
+    $lines.Add("")
+    $lines.Add("Exit code: $($maintenanceResult.ExitCode)")
+    $lines.Add("")
+    $lines.Add('```markdown')
+    $lines.Add($maintenanceResult.Output)
+    $lines.Add('```')
+    $lines.Add("")
+} else {
+    $lines.Add('Maintenance collector was not run. Re-run with `-RunMaintenanceCheck` before using this report as Tier advancement evidence.')
+    $lines.Add("")
+}
+$lines.Add('A Tier 1 request remains blocked until the artifact version is a published stable `1.0.0` or later release and all release validation gates pass.')
 
 $report = $lines -join [Environment]::NewLine
 if ([string]::IsNullOrWhiteSpace($OutFile)) {
