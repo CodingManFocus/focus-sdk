@@ -64,16 +64,25 @@ gh label list --repo CodingManFocus/focus-sdk --limit 100
 
 Before requesting an official Tier change:
 
-1. Re-run the commands in `Current Snapshot`.
-2. Export all issues and preserve the JSON output as release evidence.
-3. For every valid issue, verify that the first Type, Status, or Priority label
+1. Run the collector script:
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-maintenance-evidence.ps1 -Repo CodingManFocus/focus-sdk
+   ```
+2. Preserve the Markdown output as release evidence. Use `-OutFile <path>` when
+   a file artifact is needed.
+3. Re-run the commands in `Current Snapshot` if the collector reports missing
+   labels or disabled issue tracking.
+4. For every valid issue, verify that the first Type, Status, or Priority label
    was applied within two business days of `createdAt`.
-4. For every issue labeled `P0`, verify that the issue was closed within seven
+5. For every issue labeled `P0`, verify that the issue was closed within seven
    days of the `P0` label event.
-5. If there are no issues or no P0 issues, record that the period had no
+6. If there are no issues or no P0 issues, record that the period had no
    measurable incident for that metric rather than treating it as historical
    proof of SLA performance.
 
 The `P0` label event time may require GitHub timeline data rather than
 `gh issue list`, because the issue list output does not include per-label event
 timestamps.
+
+The collector uses `gh api repos/<owner>/<repo>/issues/<number>/timeline` to
+retrieve label event timestamps for issue records included in the report.
