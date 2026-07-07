@@ -83,7 +83,7 @@ Status legend:
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
 | Documentation coverage | Ready, keep fresh | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, host validation, logging, pagination, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Keep feature, auth, and security examples current after API or spec changes. |
-| Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
+| Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `docs/maintenance-evidence.md` records that GitHub Issues are enabled, the required labels were verified on 2026-07-07, and the current issue inventory was empty. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
 

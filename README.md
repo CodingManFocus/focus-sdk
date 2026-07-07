@@ -975,6 +975,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)
 - [Dependency update policy](./docs/dependency-update-policy.md)
 - [Maintenance policy](./docs/maintenance-policy.md)
+- [Maintenance evidence](./docs/maintenance-evidence.md)
 - [Tier 1 readiness roadmap](./docs/tier1-readiness.md)
 
 ## Contributing

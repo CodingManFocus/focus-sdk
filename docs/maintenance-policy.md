@@ -3,6 +3,9 @@
 This document records the maintenance commitments and issue-label taxonomy used
 as MCP SDK Tier evidence for this fork.
 
+Current repository-state evidence is tracked in
+`docs/maintenance-evidence.md`.
+
 Official Tiering reference:
 https://modelcontextprotocol.io/community/sdk-tiers
 
@@ -76,7 +79,7 @@ or use of core primitives such as tools, resources, or prompts.
 
 ## Fork Label Evidence
 
-Verified on 2026-07-06 with:
+Verified on 2026-07-07 with:
 
 ```bash
 gh label list --repo CodingManFocus/focus-sdk --limit 100
@@ -91,3 +94,8 @@ Required Tiering labels present in `CodingManFocus/focus-sdk`:
 
 The labels are repository state, so they should be rechecked before requesting
 an official Tier change.
+
+GitHub Issues are enabled on `CodingManFocus/focus-sdk`, which is required for
+collecting triage and P0 resolution evidence. See
+`docs/maintenance-evidence.md` for the latest snapshot and collection
+procedure.

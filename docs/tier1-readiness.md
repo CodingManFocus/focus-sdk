@@ -134,7 +134,9 @@ Known gaps and risks:
   validation, logging, pagination, prompts/completion,
   resources/templates/subscriptions, roots, sampling, and tools.
 - Maintenance labels and commitments are documented in
-  `docs/maintenance-policy.md`; operational history showing that triage and
+  `docs/maintenance-policy.md`, and current repository-state evidence is
+  tracked in `docs/maintenance-evidence.md`. GitHub Issues are enabled and the
+  required labels are present, but operational history showing that triage and
   P0 resolution metrics are being met still needs to be collected before a Tier
   request.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
