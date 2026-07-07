@@ -137,6 +137,19 @@ public data class McpOAuthAuthorizationRequest(
 )
 
 /**
+ * Parsed authorization-code redirect callback.
+ *
+ * @property code Authorization code returned by the authorization server.
+ * @property state Optional state value returned by the authorization server.
+ * @property rawParameters Complete query parameter map for fields not modeled by this SDK version.
+ */
+public data class McpOAuthAuthorizationCallback(
+    public val code: String,
+    public val state: String? = null,
+    public val rawParameters: Map<String, List<String>> = emptyMap(),
+)
+
+/**
  * Inputs for preparing an MCP OAuth authorization-code flow.
  *
  * The SDK performs metadata discovery, PKCE validation, authorization URL construction,
@@ -573,6 +586,52 @@ public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest):
     request.scope?.let { builder.parameters.append("scope", it) }
     return builder.buildString()
 }
+
+/**
+ * Parses and validates an OAuth authorization-code redirect callback URL.
+ *
+ * If [expectedState] is supplied, the callback must include the same `state` value. OAuth error
+ * callbacks are converted to [McpOAuthException]. Applications should call this after receiving
+ * the redirect and before exchanging the authorization code for tokens.
+ */
+public fun parseMcpOAuthAuthorizationCallback(
+    callbackUrl: String,
+    expectedState: String? = null,
+): McpOAuthAuthorizationCallback {
+    val url = Url(callbackUrl)
+    val parameters = url.parameters
+    val error = parameters["error"]
+    if (error != null) {
+        val errorDescription = parameters["error_description"]
+        val errorUri = parameters["error_uri"]
+        val errorDetail = listOfNotNull(error, errorDescription, errorUri).joinToString(": ")
+        throw McpOAuthException("Authorization callback failed: $errorDetail")
+    }
+
+    val code = parameters["code"]?.takeIf { it.isNotBlank() }
+        ?: throw McpOAuthException("Authorization callback does not include code")
+    val state = parameters["state"]
+    if (expectedState != null && state != expectedState) {
+        throw McpOAuthException("Authorization callback state mismatch")
+    }
+
+    return McpOAuthAuthorizationCallback(
+        code = code,
+        state = state,
+        rawParameters = parameters.names().associateWith { name -> parameters.getAll(name).orEmpty() },
+    )
+}
+
+/**
+ * Parses an OAuth authorization-code redirect callback URL and validates it against a prepared flow.
+ */
+public fun parseMcpOAuthAuthorizationCallback(
+    callbackUrl: String,
+    preparedFlow: McpOAuthPreparedAuthorizationCodeFlow,
+): McpOAuthAuthorizationCallback = parseMcpOAuthAuthorizationCallback(
+    callbackUrl = callbackUrl,
+    expectedState = preparedFlow.state,
+)
 
 /**
  * Discovers metadata and prepares an MCP OAuth authorization-code flow.

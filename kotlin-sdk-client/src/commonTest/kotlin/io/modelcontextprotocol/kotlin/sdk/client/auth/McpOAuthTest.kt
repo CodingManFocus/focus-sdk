@@ -116,6 +116,76 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should parse authorization callback and verify state`() {
+        val callback = parseMcpOAuthAuthorizationCallback(
+            callbackUrl = "http://127.0.0.1/callback?code=code-123&state=state-123&iss=https%3A%2F%2Fauth.example.com",
+            expectedState = "state-123",
+        )
+
+        assertEquals("code-123", callback.code)
+        assertEquals("state-123", callback.state)
+        assertEquals(listOf("https://auth.example.com"), callback.rawParameters["iss"])
+    }
+
+    @Test
+    fun `should parse authorization callback using prepared flow state`() {
+        val preparedFlow = McpOAuthPreparedAuthorizationCodeFlow(
+            discovery = McpOAuthDiscoveryResult(
+                resourceMetadata = OAuthProtectedResourceMetadata(raw = buildJsonObject {}),
+                authorizationServerMetadata = OAuthAuthorizationServerMetadata(raw = buildJsonObject {}),
+            ),
+            resource = "https://mcp.example.com/mcp",
+            authorizationUrl = "https://auth.example.com/authorize",
+            redirectUri = "http://127.0.0.1/callback",
+            pkce = McpOAuthPkce(codeVerifier = "verifier", codeChallenge = "challenge"),
+            clientCredentials = McpOAuthClientCredentials("client"),
+            tokenEndpoint = "https://auth.example.com/token",
+            tokenEndpointAuthMethod = McpOAuthTokenEndpointAuthMethod.None,
+            state = "state-123",
+        )
+
+        val callback = parseMcpOAuthAuthorizationCallback(
+            callbackUrl = "http://127.0.0.1/callback?code=code-123&state=state-123",
+            preparedFlow = preparedFlow,
+        )
+
+        assertEquals("code-123", callback.code)
+    }
+
+    @Test
+    fun `should reject authorization callback state mismatch`() {
+        assertFailsWith<McpOAuthException> {
+            parseMcpOAuthAuthorizationCallback(
+                callbackUrl = "http://127.0.0.1/callback?code=code-123&state=wrong-state",
+                expectedState = "state-123",
+            )
+        }
+    }
+
+    @Test
+    fun `should reject authorization callback oauth error`() {
+        val error = assertFailsWith<McpOAuthException> {
+            parseMcpOAuthAuthorizationCallback(
+                callbackUrl = "http://127.0.0.1/callback?error=access_denied&error_description=User%20cancelled",
+                expectedState = "state-123",
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("access_denied"))
+        assertTrue(error.message.orEmpty().contains("User cancelled"))
+    }
+
+    @Test
+    fun `should reject authorization callback without code`() {
+        assertFailsWith<McpOAuthException> {
+            parseMcpOAuthAuthorizationCallback(
+                callbackUrl = "http://127.0.0.1/callback?state=state-123",
+                expectedState = "state-123",
+            )
+        }
+    }
+
+    @Test
     fun `should select token endpoint auth method from metadata`() {
         val metadata = OAuthAuthorizationServerMetadata(
             tokenEndpointAuthMethodsSupported = listOf("unsupported", "none", "client_secret_basic"),

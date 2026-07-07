@@ -88,6 +88,7 @@ import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
 import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
+import io.modelcontextprotocol.kotlin.sdk.client.auth.parseMcpOAuthAuthorizationCallback
 import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import java.security.SecureRandom
@@ -98,7 +99,7 @@ suspend fun connectAfterAuthorization(
     clientId: String,
     clientSecret: String?,
     redirectUri: String,
-    receiveAuthorizationCode: suspend (authorizationUrl: String, state: String) -> String,
+    receiveAuthorizationRedirectUrl: suspend (authorizationUrl: String, state: String) -> String,
 ): Client {
     val discoveryClient = HttpClient()
     val tokenClient = HttpClient()
@@ -119,12 +120,13 @@ suspend fun connectAfterAuthorization(
         ),
     )
 
-    val authorizationCode = receiveAuthorizationCode(preparedFlow.authorizationUrl, state)
+    val callbackUrl = receiveAuthorizationRedirectUrl(preparedFlow.authorizationUrl, state)
+    val callback = parseMcpOAuthAuthorizationCallback(callbackUrl, preparedFlow)
 
     val tokens = exchangeMcpOAuthAuthorizationCode(
         httpClient = tokenClient,
         preparedFlow = preparedFlow,
-        code = authorizationCode,
+        code = callback.code,
     )
 
     val tokenStore = McpOAuthTokenStore(tokens)
@@ -135,10 +137,11 @@ suspend fun connectAfterAuthorization(
 }
 ```
 
-Generate `state` with cryptographically secure random bytes and verify the
-returned redirect state before exchanging the code. The sample leaves browser
-launching and callback handling to the application because desktop, CLI,
-server-side, and mobile hosts need different redirect handling.
+Generate `state` with cryptographically secure random bytes. The callback
+parser rejects OAuth error callbacks, missing codes, and state mismatches before
+token exchange. The sample leaves browser launching and callback capture to the
+application because desktop, CLI, server-side, and mobile hosts need different
+redirect handling.
 
 ## Client Registration
 
