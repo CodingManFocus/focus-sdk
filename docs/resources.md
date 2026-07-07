@@ -224,3 +224,6 @@ protocol errors rather than returning partial or misleading contents.
 - Redact secrets from resource text and metadata.
 - Treat custom URI schemes as application contracts and document them.
 - Re-check permissions when sending update notifications.
+
+See [Host validation guide](./host-validation.md) for JVM path and URI guard
+examples that can be adapted to host applications.

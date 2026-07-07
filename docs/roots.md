@@ -127,6 +127,9 @@ Do not infer permission from a path prefix string alone. Normalize the requested
 path and the root path first, then compare the resulting filesystem paths using
 platform-aware APIs.
 
+See [Host validation guide](./host-validation.md) for JVM path guard examples
+and resource URI validation patterns.
+
 ## Error Handling
 
 If a client does not declare the `roots` capability, the SDK rejects

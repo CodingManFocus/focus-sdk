@@ -961,6 +961,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 - [Auth and OAuth guide](./docs/auth-oauth.md)
 - [Elicitation guide](./docs/elicitation.md)
+- [Host validation guide](./docs/host-validation.md)
 - [Logging guide](./docs/logging.md)
 - [Pagination guide](./docs/pagination.md)
 - [Prompts and completion guide](./docs/prompts-completion.md)

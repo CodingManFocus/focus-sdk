@@ -82,7 +82,7 @@ Status legend:
 | Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
-| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, logging, pagination, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Add security-sensitive host validation examples and keep feature guides current. |
+| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, host validation, logging, pagination, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Complete the auth/OAuth deep-dive gaps and keep feature/security examples current after API or spec changes. |
 | Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
@@ -90,12 +90,9 @@ Status legend:
 1. Auth/OAuth parity:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
-2. Security-sensitive examples:
-   add host validation examples for filesystem/resource access and other
-   security-sensitive integrations.
-3. Maintenance evidence:
+2. Maintenance evidence:
    collect operational evidence that issue triage and P0 resolution metrics
    are being met against the published policy.
-4. Release readiness:
+3. Release readiness:
    keep `apiCheck`, conformance output, dependency policy, release policy, and
    this matrix current before a `1.0.0` release candidate.
