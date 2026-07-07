@@ -107,19 +107,20 @@ Known gaps and risks:
   criterion still requires a `1.0.0` or later release without a pre-release
   identifier.
 - Client auth now has initial reusable discovery, bearer-header, PKCE S256,
-  authorization request, authorization-code token exchange, refresh token
-  primitives, client credentials token exchange/provider support,
-  `private_key_jwt` assertion request support, JVM RS256 assertion signing,
-  Client ID Metadata Document JSON generation, dynamic client registration
-  support, expiry-aware token snapshot/restore helpers, and dynamic Streamable
-  HTTP bearer-header coverage. Server auth now has Protected Resource Metadata,
-  Bearer challenge helpers, request-level bearer guard helpers, and verified
-  JWT claims validation helpers, but the full SDK OAuth flow still needs
-  end-to-end transport integration.
+  authorization request, reusable authorization-code flow preparation/completion,
+  authorization-code token exchange, refresh token primitives, client credentials
+  token exchange/provider support, `private_key_jwt` assertion request support,
+  JVM RS256 assertion signing, Client ID Metadata Document JSON generation,
+  dynamic client registration support, expiry-aware token snapshot/restore
+  helpers, and dynamic Streamable HTTP bearer-header coverage. Server auth now
+  has Protected Resource Metadata, Bearer challenge helpers, request-level
+  bearer guard helpers, and verified JWT claims validation helpers, but the full
+  SDK OAuth flow still needs browser/callback, token persistence, and transport
+  bootstrap integration where appropriate.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, non-JVM
   JWT assertion provider wiring, JWKS publication, and JWT/JWKS verification
-  responsibilities, but the full SDK OAuth flow still needs end-to-end
-  integration beyond helper APIs.
+  responsibilities, but the full SDK OAuth flow still needs integration beyond
+  helper APIs.
 - Dedicated feature guides now cover OAuth, Streamable HTTP, elicitation, host
   validation, logging, pagination, prompts/completion,
   resources/templates/subscriptions, roots, sampling, and tools.
@@ -162,7 +163,7 @@ Known gaps and risks:
 
 - Keep security-sensitive host validation examples current as resource, roots,
   and tool host-integration APIs evolve.
-- Continue auth/OAuth parity from the current helper APIs toward a complete
+- Continue auth/OAuth parity from the current flow helpers toward a complete
   reusable client/server OAuth experience.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.

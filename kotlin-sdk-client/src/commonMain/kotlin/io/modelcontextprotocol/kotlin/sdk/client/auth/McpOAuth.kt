@@ -137,6 +137,73 @@ public data class McpOAuthAuthorizationRequest(
 )
 
 /**
+ * Inputs for preparing an MCP OAuth authorization-code flow.
+ *
+ * The SDK performs metadata discovery, PKCE validation, authorization URL construction,
+ * token endpoint selection, and MCP-required `resource` handling. Applications still own
+ * generating cryptographically secure PKCE/state values, opening the browser, receiving the
+ * redirect, and verifying returned state before token exchange.
+ *
+ * @property serverUrl Protected MCP server URL.
+ * @property clientCredentials OAuth client credentials or public client id.
+ * @property redirectUri Redirect URI registered for the client.
+ * @property pkce PKCE verifier/challenge material to use for this flow.
+ * @property state Optional state value to send and later verify.
+ * @property wwwAuthenticate Optional `WWW-Authenticate` header from a `401 Unauthorized` response.
+ * @property resourceMetadataUrl Explicit Protected Resource Metadata URL. When absent, the
+ * `resource_metadata` challenge parameter is used if present, then well-known discovery is used.
+ * @property scope Optional requested scope used only when the challenge does not provide an
+ * authoritative scope.
+ * @property clientAssertionProvider Optional provider for `private_key_jwt` token endpoint auth.
+ */
+public data class McpOAuthAuthorizationCodeFlowRequest(
+    public val serverUrl: String,
+    public val clientCredentials: McpOAuthClientCredentials,
+    public val redirectUri: String,
+    public val pkce: McpOAuthPkce,
+    public val state: String? = null,
+    public val wwwAuthenticate: String? = null,
+    public val resourceMetadataUrl: String? = null,
+    public val scope: String? = null,
+    public val clientAssertionProvider: McpOAuthClientAssertionProvider? = null,
+)
+
+/**
+ * Prepared MCP OAuth authorization-code flow.
+ *
+ * Keep this value until the redirect callback is validated and the authorization code is exchanged.
+ * It contains the PKCE verifier and selected token endpoint authentication method needed to complete
+ * the flow.
+ */
+public data class McpOAuthPreparedAuthorizationCodeFlow(
+    public val discovery: McpOAuthDiscoveryResult,
+    public val resource: String,
+    public val authorizationUrl: String,
+    public val redirectUri: String,
+    public val pkce: McpOAuthPkce,
+    public val clientCredentials: McpOAuthClientCredentials,
+    public val tokenEndpoint: String,
+    public val tokenEndpointAuthMethod: McpOAuthTokenEndpointAuthMethod,
+    public val state: String? = null,
+    public val scope: String? = null,
+    public val clientAssertionProvider: McpOAuthClientAssertionProvider? = null,
+) {
+    /**
+     * Builds the token exchange request for an authorization code returned by the redirect.
+     */
+    public fun tokenRequest(code: String): McpOAuthAuthorizationCodeTokenRequest =
+        McpOAuthAuthorizationCodeTokenRequest(
+            tokenEndpoint = tokenEndpoint,
+            code = code,
+            redirectUri = redirectUri,
+            codeVerifier = pkce.codeVerifier,
+            resource = resource,
+            clientCredentials = clientCredentials,
+            tokenEndpointAuthMethod = tokenEndpointAuthMethod,
+        )
+}
+
+/**
  * OAuth token endpoint client authentication methods supported by MCP auth helpers.
  */
 public enum class McpOAuthTokenEndpointAuthMethod(public val wireValue: String) {
@@ -508,6 +575,67 @@ public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest):
 }
 
 /**
+ * Discovers metadata and prepares an MCP OAuth authorization-code flow.
+ *
+ * The returned [McpOAuthPreparedAuthorizationCodeFlow.authorizationUrl] is ready to open in a
+ * browser. After the application validates the redirect state and obtains an authorization code,
+ * call [exchangeMcpOAuthAuthorizationCode] with the prepared flow.
+ */
+public suspend fun prepareMcpOAuthAuthorizationCodeFlow(
+    httpClient: HttpClient,
+    request: McpOAuthAuthorizationCodeFlowRequest,
+): McpOAuthPreparedAuthorizationCodeFlow {
+    val discovery = discoverMcpOAuthMetadata(
+        httpClient = httpClient,
+        serverUrl = request.serverUrl,
+        resourceMetadataUrl = request.resourceMetadataUrl
+            ?: wwwAuthenticateParameter(request.wwwAuthenticate, "resource_metadata"),
+    )
+    val authorizationServer = discovery.authorizationServerMetadata
+    requireMcpPkceS256Support(authorizationServer)
+
+    val authorizationEndpoint = authorizationServer.authorizationEndpoint
+        ?: throw McpOAuthException("Authorization server metadata does not include authorization_endpoint")
+    val tokenEndpoint = authorizationServer.tokenEndpoint
+        ?: throw McpOAuthException("Authorization server metadata does not include token_endpoint")
+    val resource = discovery.resourceMetadata.resource ?: request.serverUrl
+    val scope = wwwAuthenticateParameter(request.wwwAuthenticate, "scope")
+        ?: request.scope
+        ?: discovery.resourceMetadata.scopesSupported?.takeIf { it.isNotEmpty() }?.joinToString(" ")
+    val tokenEndpointAuthMethod = selectMcpOAuthTokenEndpointAuthMethod(
+        metadata = authorizationServer,
+        clientSecret = request.clientCredentials.clientSecret,
+        clientAssertionProvider = request.clientAssertionProvider,
+    )
+
+    val authorizationUrl = buildMcpOAuthAuthorizationUrl(
+        McpOAuthAuthorizationRequest(
+            authorizationEndpoint = authorizationEndpoint,
+            clientId = request.clientCredentials.clientId,
+            redirectUri = request.redirectUri,
+            codeChallenge = request.pkce.codeChallenge,
+            resource = resource,
+            scope = scope,
+            state = request.state,
+        ),
+    )
+
+    return McpOAuthPreparedAuthorizationCodeFlow(
+        discovery = discovery,
+        resource = resource,
+        authorizationUrl = authorizationUrl,
+        redirectUri = request.redirectUri,
+        pkce = request.pkce,
+        clientCredentials = request.clientCredentials,
+        tokenEndpoint = tokenEndpoint,
+        tokenEndpointAuthMethod = tokenEndpointAuthMethod,
+        state = request.state,
+        scope = scope,
+        clientAssertionProvider = request.clientAssertionProvider,
+    )
+}
+
+/**
  * Selects a token endpoint authentication method from authorization server metadata.
  */
 public fun selectMcpOAuthTokenEndpointAuthMethod(
@@ -601,6 +729,19 @@ public suspend fun registerMcpOAuthClient(
 public suspend fun exchangeMcpOAuthAuthorizationCode(
     httpClient: HttpClient,
     request: McpOAuthAuthorizationCodeTokenRequest,
+): McpOAuthTokenResponse = exchangeMcpOAuthAuthorizationCode(
+    httpClient = httpClient,
+    request = request,
+    clientAssertionProvider = null,
+)
+
+/**
+ * Exchanges an authorization code for OAuth tokens using an optional JWT client assertion.
+ */
+public suspend fun exchangeMcpOAuthAuthorizationCode(
+    httpClient: HttpClient,
+    request: McpOAuthAuthorizationCodeTokenRequest,
+    clientAssertionProvider: McpOAuthClientAssertionProvider?,
 ): McpOAuthTokenResponse {
     requireValidPkceVerifier(request.codeVerifier)
     val response = submitMcpOAuthTokenRequest(
@@ -609,6 +750,7 @@ public suspend fun exchangeMcpOAuthAuthorizationCode(
         formParameters = request.tokenFormParameters(),
         clientCredentials = request.clientCredentials,
         tokenEndpointAuthMethod = request.tokenEndpointAuthMethod,
+        clientAssertionProvider = clientAssertionProvider,
     )
 
     val body = response.bodyAsText()
@@ -628,6 +770,19 @@ public suspend fun exchangeMcpOAuthAuthorizationCode(
 
     return json.toMcpOAuthTokenResponse()
 }
+
+/**
+ * Completes a prepared MCP OAuth authorization-code flow after redirect state validation.
+ */
+public suspend fun exchangeMcpOAuthAuthorizationCode(
+    httpClient: HttpClient,
+    preparedFlow: McpOAuthPreparedAuthorizationCodeFlow,
+    code: String,
+): McpOAuthTokenResponse = exchangeMcpOAuthAuthorizationCode(
+    httpClient = httpClient,
+    request = preparedFlow.tokenRequest(code),
+    clientAssertionProvider = preparedFlow.clientAssertionProvider,
+)
 
 /**
  * Refreshes an MCP OAuth access token using the refresh-token grant.

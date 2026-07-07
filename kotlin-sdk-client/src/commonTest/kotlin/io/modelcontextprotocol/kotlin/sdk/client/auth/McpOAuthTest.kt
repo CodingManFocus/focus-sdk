@@ -896,6 +896,102 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should prepare and complete authorization code flow from challenge metadata`() = runTest {
+        val requestedUrls = mutableListOf<String>()
+        var capturedForm: FormDataContent? = null
+        val challenge = """Bearer resource_metadata="https://mcp.example.com/custom-resource-metadata",""" +
+            """ scope="files:read""""
+        val pkce = McpOAuthPkce(
+            codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+            codeChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        )
+        val client = HttpClient(
+            MockEngine { request ->
+                requestedUrls += request.url.toString()
+                when (request.url.toString()) {
+                    "https://mcp.example.com/custom-resource-metadata" -> respondJson(
+                        """
+                        {
+                          "resource": "https://mcp.example.com/mcp",
+                          "authorization_servers": ["https://auth.example.com/tenant"],
+                          "scopes_supported": ["files:read", "files:write"]
+                        }
+                        """.trimIndent(),
+                    )
+
+                    "https://auth.example.com/.well-known/oauth-authorization-server/tenant" -> respondJson(
+                        """
+                        {
+                          "issuer": "https://auth.example.com/tenant",
+                          "authorization_endpoint": "https://auth.example.com/authorize",
+                          "token_endpoint": "https://auth.example.com/token",
+                          "token_endpoint_auth_methods_supported": ["private_key_jwt", "none"],
+                          "code_challenge_methods_supported": ["S256"]
+                        }
+                        """.trimIndent(),
+                    )
+
+                    "https://auth.example.com/token" -> {
+                        capturedForm = request.body as FormDataContent
+                        respondJson("""{"access_token":"access-123","token_type":"Bearer"}""")
+                    }
+
+                    else -> error("Unexpected URL: ${request.url}")
+                }
+            },
+        )
+
+        val prepared = prepareMcpOAuthAuthorizationCodeFlow(
+            httpClient = client,
+            request = McpOAuthAuthorizationCodeFlowRequest(
+                serverUrl = "https://mcp.example.com/mcp",
+                clientCredentials = McpOAuthClientCredentials(
+                    clientId = "https://client.example.com/metadata.json",
+                ),
+                redirectUri = "http://127.0.0.1/callback",
+                pkce = pkce,
+                state = "state-123",
+                wwwAuthenticate = challenge,
+                clientAssertionProvider = McpOAuthClientAssertionProvider { "jwt-assertion" },
+            ),
+        )
+        val authorizationUrl = Url(prepared.authorizationUrl)
+
+        assertEquals(
+            listOf(
+                "https://mcp.example.com/custom-resource-metadata",
+                "https://auth.example.com/.well-known/oauth-authorization-server/tenant",
+            ),
+            requestedUrls,
+        )
+        assertEquals("https://auth.example.com/authorize", authorizationUrl.toString().substringBefore("?"))
+        assertEquals("code", authorizationUrl.parameters["response_type"])
+        assertEquals("https://client.example.com/metadata.json", authorizationUrl.parameters["client_id"])
+        assertEquals("http://127.0.0.1/callback", authorizationUrl.parameters["redirect_uri"])
+        assertEquals(pkce.codeChallenge, authorizationUrl.parameters["code_challenge"])
+        assertEquals("S256", authorizationUrl.parameters["code_challenge_method"])
+        assertEquals("https://mcp.example.com/mcp", authorizationUrl.parameters["resource"])
+        assertEquals("files:read", authorizationUrl.parameters["scope"])
+        assertEquals("state-123", authorizationUrl.parameters["state"])
+        assertEquals(McpOAuthTokenEndpointAuthMethod.PrivateKeyJwt, prepared.tokenEndpointAuthMethod)
+
+        val tokens = exchangeMcpOAuthAuthorizationCode(
+            httpClient = client,
+            preparedFlow = prepared,
+            code = "code-123",
+        )
+
+        assertEquals("access-123", tokens.accessToken)
+        assertEquals("authorization_code", capturedForm?.formData?.get("grant_type"))
+        assertEquals("code-123", capturedForm?.formData?.get("code"))
+        assertEquals(pkce.codeVerifier, capturedForm?.formData?.get("code_verifier"))
+        assertEquals("https://mcp.example.com/mcp", capturedForm?.formData?.get("resource"))
+        assertEquals("https://client.example.com/metadata.json", capturedForm?.formData?.get("client_id"))
+        assertEquals(MCP_OAUTH_JWT_BEARER_CLIENT_ASSERTION_TYPE, capturedForm?.formData?.get("client_assertion_type"))
+        assertEquals("jwt-assertion", capturedForm?.formData?.get("client_assertion"))
+    }
+
+    @Test
     fun `should parse bearer challenge parameters`() {
         val header = """Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource",""" +
             """ scope="files:read files:write""""

@@ -33,6 +33,9 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
   a `registration_endpoint`.
 - PKCE S256 code verifier/challenge generation.
 - Authorization-code URL construction.
+- Reusable authorization-code flow preparation and completion helpers that
+  combine discovery, challenge scope handling, PKCE validation, `resource`
+  propagation, and token endpoint authentication method selection.
 - Authorization-code token exchange.
 - Refresh-token exchange.
 - Token store snapshot/restore helpers for application-managed secure storage.
@@ -79,19 +82,13 @@ on behalf of a user.
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.sse.SSE
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
-import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeTokenRequest
-import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationRequest
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeFlowRequest
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
-import io.modelcontextprotocol.kotlin.sdk.client.auth.buildMcpOAuthAuthorizationUrl
-import io.modelcontextprotocol.kotlin.sdk.client.auth.discoverMcpOAuthMetadata
 import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpBearerAuth
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
-import io.modelcontextprotocol.kotlin.sdk.client.auth.requireMcpPkceS256Support
-import io.modelcontextprotocol.kotlin.sdk.client.auth.selectMcpOAuthScope
-import io.modelcontextprotocol.kotlin.sdk.client.auth.selectMcpOAuthTokenEndpointAuthMethod
-import io.modelcontextprotocol.kotlin.sdk.client.auth.wwwAuthenticateParameter
+import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import java.security.SecureRandom
@@ -107,59 +104,28 @@ suspend fun connectAfterAuthorization(
     val discoveryClient = HttpClient()
     val tokenClient = HttpClient()
 
-    val discovery = discoverMcpOAuthMetadata(
-        httpClient = discoveryClient,
-        serverUrl = serverUrl,
-        resourceMetadataUrl = wwwAuthenticateParameter(wwwAuthenticate, "resource_metadata"),
-    )
-    val resource = discovery.resourceMetadata.resource ?: serverUrl
-    val authorizationServer = discovery.authorizationServerMetadata
-
-    requireMcpPkceS256Support(authorizationServer)
-
     val randomBytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
     val pkce = mcpPkceS256(randomBytes)
     val state = "replace-with-cryptographically-random-state"
-    val scope = selectMcpOAuthScope(
-        wwwAuthenticateScope = wwwAuthenticateParameter(wwwAuthenticate, "scope"),
-        scopesSupported = discovery.resourceMetadata.scopesSupported,
-    )
 
-    val authorizationEndpoint = authorizationServer.authorizationEndpoint
-        ?: error("Authorization server metadata did not include authorization_endpoint")
-    val tokenEndpoint = authorizationServer.tokenEndpoint
-        ?: error("Authorization server metadata did not include token_endpoint")
-
-    val authorizationUrl = buildMcpOAuthAuthorizationUrl(
-        McpOAuthAuthorizationRequest(
-            authorizationEndpoint = authorizationEndpoint,
-            clientId = clientId,
+    val preparedFlow = prepareMcpOAuthAuthorizationCodeFlow(
+        httpClient = discoveryClient,
+        request = McpOAuthAuthorizationCodeFlowRequest(
+            serverUrl = serverUrl,
+            clientCredentials = McpOAuthClientCredentials(clientId, clientSecret),
             redirectUri = redirectUri,
-            codeChallenge = pkce.codeChallenge,
-            resource = resource,
-            scope = scope,
+            pkce = pkce,
             state = state,
+            wwwAuthenticate = wwwAuthenticate,
         ),
     )
 
-    val authorizationCode = receiveAuthorizationCode(authorizationUrl, state)
-    val clientCredentials = McpOAuthClientCredentials(clientId, clientSecret)
-    val tokenEndpointAuthMethod = selectMcpOAuthTokenEndpointAuthMethod(
-        authorizationServer,
-        clientSecret,
-    )
+    val authorizationCode = receiveAuthorizationCode(preparedFlow.authorizationUrl, state)
 
     val tokens = exchangeMcpOAuthAuthorizationCode(
         httpClient = tokenClient,
-        request = McpOAuthAuthorizationCodeTokenRequest(
-            tokenEndpoint = tokenEndpoint,
-            code = authorizationCode,
-            redirectUri = redirectUri,
-            codeVerifier = pkce.codeVerifier,
-            resource = resource,
-            clientCredentials = clientCredentials,
-            tokenEndpointAuthMethod = tokenEndpointAuthMethod,
-        ),
+        preparedFlow = preparedFlow,
+        code = authorizationCode,
     )
 
     val tokenStore = McpOAuthTokenStore(tokens)
