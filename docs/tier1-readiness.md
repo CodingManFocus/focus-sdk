@@ -119,9 +119,9 @@ Known gaps and risks:
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, but
   non-JVM JWT assertion signing guidance and full JWT signature/JWKS validation
   examples are still open.
-- Feature docs are not yet comprehensive for roots, logging, and pagination.
-  Dedicated guides now cover OAuth, Streamable HTTP, elicitation,
-  prompts/completion, resources/templates/subscriptions, sampling, and tools.
+- Feature docs are not yet comprehensive for logging and pagination. Dedicated
+  guides now cover OAuth, Streamable HTTP, elicitation, prompts/completion,
+  resources/templates/subscriptions, roots, sampling, and tools.
 - Maintenance labels and commitments are documented in
   `docs/maintenance-policy.md`; operational history showing that triage and
   P0 resolution metrics are being met still needs to be collected before a Tier
@@ -159,8 +159,8 @@ Known gaps and risks:
 
 ### Phase 3: Documentation and Release Readiness
 
-- Add feature examples for roots, logging, pagination, and security-sensitive
-  host validation.
+- Add feature examples for logging, pagination, and security-sensitive host
+  validation.
 - Continue auth/OAuth parity from the current guide toward non-JVM JWT
   assertion signing guidance and JWT signature/JWKS validation examples.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation

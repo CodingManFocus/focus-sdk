@@ -963,6 +963,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Elicitation guide](./docs/elicitation.md)
 - [Prompts and completion guide](./docs/prompts-completion.md)
 - [Resources guide](./docs/resources.md)
+- [Roots guide](./docs/roots.md)
 - [Sampling guide](./docs/sampling.md)
 - [Streamable HTTP guide](./docs/streamable-http.md)
 - [Tools guide](./docs/tools.md)

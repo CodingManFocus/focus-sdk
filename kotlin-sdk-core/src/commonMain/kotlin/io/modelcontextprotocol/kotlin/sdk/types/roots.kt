@@ -49,8 +49,9 @@ public data class Root(
  * structure or access specific locations that the client has permission to read from.
  *
  * **Note:** Unlike most other requests, this is sent from the **server to the client**,
- * not from client to server. The client must support the `roots` capability with
- * `listChanged = true` to receive these requests.
+ * not from client to server. The client must support the `roots` capability to
+ * receive these requests. `listChanged = true` is only required for the client to
+ * send [RootsListChangedNotification].
  *
  * @property params Optional request parameters containing metadata.
  */
