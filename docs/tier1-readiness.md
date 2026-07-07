@@ -20,6 +20,7 @@ Official references:
 - Latest stable schema reference: https://modelcontextprotocol.io/specification/2025-11-25/schema
 - Latest stable transports: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
 - Tier 1 SDK capability matrix: `docs/tier1-sdk-capability-matrix.md`
+- Tier advancement evidence index: `docs/tier1-advancement-evidence.md`
 
 ## Tier 1 Acceptance Criteria
 
@@ -100,6 +101,9 @@ Strong signals already present:
 - `docs/tier1-sdk-capability-matrix.md` records the TypeScript, Python, C#,
   and Go SDK signals being used as the Tier 1 model and maps them to Kotlin
   implementation status.
+- `docs/tier1-advancement-evidence.md` indexes the release, conformance,
+  documentation, dependency, roadmap, and maintenance evidence needed for a
+  future SDK Working Group Tier advancement request.
 
 Known gaps and risks:
 
@@ -218,7 +222,7 @@ Immediate priority after the 2026-07-07 Tier 1 audit:
   100% and docs/release evidence is complete.
 - Prepare Tier advancement evidence for the MCP SDK Working Group:
   conformance output, feature matrix, docs links, dependency policy, release
-  policy, and maintenance commitments.
+  policy, maintenance commitments, and the evidence index.
 - Open a Tier advancement issue in the official
   `modelcontextprotocol/modelcontextprotocol` repository with the supporting
   evidence, then track automated conformance validation, GitHub maintenance

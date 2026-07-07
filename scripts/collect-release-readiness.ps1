@@ -144,6 +144,7 @@ $compatibilityPolicy = Join-Path $root "docs/compatibility-and-release-policy.md
 $dependencyPolicy = Join-Path $root "docs/dependency-update-policy.md"
 $tierRoadmap = Join-Path $root "docs/tier1-readiness.md"
 $capabilityMatrix = Join-Path $root "docs/tier1-sdk-capability-matrix.md"
+$tierEvidenceIndex = Join-Path $root "docs/tier1-advancement-evidence.md"
 $releaseNotes = Join-Path $root "docs/release-notes.md"
 $maintenanceCollector = Join-Path $root "scripts/collect-maintenance-evidence.ps1"
 
@@ -216,6 +217,7 @@ Add-CheckResult -Checks $checks -Name "Compatibility policy present" -Pass (Test
 Add-CheckResult -Checks $checks -Name "Dependency policy present" -Pass (Test-Path $dependencyPolicy) -Evidence $dependencyPolicy
 Add-CheckResult -Checks $checks -Name "Tier roadmap present" -Pass (Test-Path $tierRoadmap) -Evidence $tierRoadmap
 Add-CheckResult -Checks $checks -Name "Capability matrix present" -Pass (Test-Path $capabilityMatrix) -Evidence $capabilityMatrix
+Add-CheckResult -Checks $checks -Name "Tier advancement evidence index present" -Pass (Test-Path $tierEvidenceIndex) -Evidence $tierEvidenceIndex
 Add-CheckResult -Checks $checks -Name "Maintenance evidence present" -Pass (Test-Path $maintenanceEvidence) -Evidence $maintenanceEvidence
 Add-CheckResult -Checks $checks -Name "Release notes draft present" -Pass (Test-Path $releaseNotes) -Evidence $releaseNotes
 

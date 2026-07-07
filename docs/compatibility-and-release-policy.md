@@ -98,7 +98,8 @@ Every release should include:
 
 Tier 1 release candidates should also include links to the Tier 1 evidence:
 conformance output, feature documentation, dependency policy, roadmap, and this
-release policy.
+release policy. The canonical evidence index is
+`docs/tier1-advancement-evidence.md`.
 
 The current release-note draft is maintained in `docs/release-notes.md`.
 
@@ -165,6 +166,8 @@ Before requesting Tier 1, the SDK should have:
 - A release readiness report from `scripts/collect-release-readiness.ps1`
   showing the stable artifact version, current conformance evidence, and
   validation gate results.
+- A current Tier advancement evidence index in
+  `docs/tier1-advancement-evidence.md`.
 - Current conformance evidence for the target stable protocol.
 - Feature documentation covering supported client, server, transport, auth,
   sampling, elicitation, roots, prompts, resources, tools, completion, logging,

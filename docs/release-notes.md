@@ -31,6 +31,7 @@ Public API compatibility:
 
 Current Tier 1 evidence links:
 
+- Evidence index: `docs/tier1-advancement-evidence.md`
 - Capability matrix: `docs/tier1-sdk-capability-matrix.md`
 - Readiness roadmap: `docs/tier1-readiness.md`
 - Compatibility and release policy: `docs/compatibility-and-release-policy.md`
