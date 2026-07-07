@@ -1,6 +1,7 @@
 param(
     [string]$Repo = "CodingManFocus/focus-sdk",
     [int]$Limit = 200,
+    [string]$Since = "",
     [string]$OutFile = ""
 )
 
@@ -82,6 +83,15 @@ if (-not $repoInfo.hasIssuesEnabled) {
     throw "GitHub Issues are disabled for $Repo"
 }
 
+$sinceDate = $null
+if (-not [string]::IsNullOrWhiteSpace($Since)) {
+    $sinceDate = [datetime]::Parse(
+        $Since,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
+    )
+}
+
 $labels = Invoke-GhJson -Arguments @("label", "list", "--repo", $Repo, "--limit", "200", "--json", "name")
 $labelNames = @($labels | ForEach-Object { $_.name })
 $missingLabels = @($triageLabels | Where-Object { $labelNames -notcontains $_ })
@@ -120,10 +130,12 @@ foreach ($issue in $issues) {
     }
 
     $triageStatus = "No triage label"
+    $triageLabel = ""
     $triageAt = ""
     $triageBusinessDays = ""
     if ($null -ne $firstTriage) {
         $triageAtDate = ([datetime]$firstTriage.created_at).ToUniversalTime()
+        $triageLabel = $firstTriage.label.name
         $triageAt = Format-Utc $triageAtDate
         $triageBusinessDays = Get-BusinessDaysBetween -Start $createdAt -End $triageAtDate
         if ($triageBusinessDays -le 2) {
@@ -136,6 +148,7 @@ foreach ($issue in $issues) {
     $p0Status = "Not P0"
     $p0At = ""
     $p0CloseDays = ""
+    $p0AtDate = $null
     if ($null -ne $p0Label) {
         $p0AtDate = ([datetime]$p0Label.created_at).ToUniversalTime()
         $p0At = Format-Utc $p0AtDate
@@ -151,20 +164,39 @@ foreach ($issue in $issues) {
         }
     }
 
+    $triageInWindow = $null -eq $sinceDate -or $createdAt -ge $sinceDate
+    $p0InWindow = $false
+    if ($null -ne $p0AtDate) {
+        $p0InWindow = $null -eq $sinceDate -or $p0AtDate -ge $sinceDate
+    }
+    if (-not $triageInWindow -and -not $p0InWindow) {
+        continue
+    }
+
     $issueRows += [pscustomobject]@{
         Number = $issue.number
         Title = $issue.title
         State = $issue.state
         CreatedAt = Format-Utc $createdAt
+        FirstTriageLabel = $triageLabel
         FirstTriageAt = $triageAt
         TriageBusinessDays = $triageBusinessDays
         TriageStatus = $triageStatus
         P0LabelAt = $p0At
         P0CloseDays = $p0CloseDays
         P0Status = $p0Status
+        TriageInWindow = $triageInWindow
+        P0InWindow = $p0InWindow
         Url = $issue.url
     }
 }
+
+$triageRows = @($issueRows | Where-Object { $_.TriageInWindow })
+$p0Rows = @($issueRows | Where-Object { $_.P0InWindow })
+$triageFailures = @($triageRows | Where-Object { $_.TriageStatus -eq "FAIL" })
+$triageMissing = @($triageRows | Where-Object { $_.TriageStatus -eq "No triage label" })
+$p0Failures = @($p0Rows | Where-Object { $_.P0Status -eq "FAIL" })
+$p0Open = @($p0Rows | Where-Object { $_.P0Status -eq "OPEN" })
 
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 $lines = New-Object System.Collections.Generic.List[string]
@@ -178,30 +210,45 @@ $lines.Add("Issues enabled: ``$($repoInfo.hasIssuesEnabled)``")
 $lines.Add("")
 $lines.Add("Issue limit: $Limit")
 $lines.Add("")
+if ($null -ne $sinceDate) {
+    $lines.Add("Evidence window start: ``$(Format-Utc $sinceDate)``")
+    $lines.Add("")
+    $lines.Add("Window inclusion: issues created at or after the start, plus issues first labeled ``P0`` at or after the start.")
+} else {
+    $lines.Add("Evidence window start: all issues returned by ``gh issue list`` within the limit")
+}
+$lines.Add("")
 $lines.Add("## Required Labels")
 $lines.Add("")
 if ($missingLabels.Count -eq 0) {
+    $lines.Add("Status: ``PASS``")
+    $lines.Add("")
     $lines.Add("All required Type, Status, and Priority labels are present.")
 } else {
+    $lines.Add("Status: ``BLOCKED``")
+    $lines.Add("")
     $lines.Add("Missing labels: ``$($missingLabels -join '`, `')``")
 }
 $lines.Add("")
 $lines.Add("## Issue SLA Summary")
 $lines.Add("")
-$lines.Add("- Issues inspected: $($issues.Count)")
-$lines.Add("- Triage failures: $(($issueRows | Where-Object { $_.TriageStatus -eq 'FAIL' -or $_.TriageStatus -eq 'No triage label' }).Count)")
-$lines.Add("- P0 failures: $(($issueRows | Where-Object { $_.P0Status -eq 'FAIL' -or $_.P0Status -eq 'OPEN' }).Count)")
+$lines.Add("- Issues included in report: $($issueRows.Count)")
+$lines.Add("- Triage issues measured: $($triageRows.Count)")
+$lines.Add("- Triage SLA: $($triageFailures.Count) late, $($triageMissing.Count) missing triage labels")
+$lines.Add("- P0 SLA: $($p0Failures.Count) late, $($p0Open.Count) still open, $($p0Rows.Count) P0 issues measured")
 $lines.Add("")
-if ($issues.Count -eq 0) {
-    $lines.Add("No issues were present in this snapshot. This is not historical SLA proof; it only records that no issue records were available to measure.")
+if ($issueRows.Count -eq 0) {
+    $lines.Add("No issues matched this evidence window. This is not historical SLA proof; it only records that no issue records were available to measure.")
 } else {
-    $lines.Add("| Issue | State | Created | First triage label | Triage business days | Triage status | P0 label | P0 close days | P0 status |")
-    $lines.Add("| --- | --- | --- | --- | ---: | --- | --- | ---: | --- |")
+    $lines.Add("| Issue | State | Created | First triage label | First triage at | Triage business days | Triage status | P0 label | P0 close days | P0 status |")
+    $lines.Add("| --- | --- | --- | --- | --- | ---: | --- | --- | ---: | --- |")
     foreach ($row in $issueRows) {
         $issueLink = "[#$($row.Number)]($($row.Url))"
-        $lines.Add("| $issueLink | $($row.State) | $($row.CreatedAt) | $($row.FirstTriageAt) | $($row.TriageBusinessDays) | $($row.TriageStatus) | $($row.P0LabelAt) | $($row.P0CloseDays) | $($row.P0Status) |")
+        $lines.Add("| $issueLink | $($row.State) | $($row.CreatedAt) | $($row.FirstTriageLabel) | $($row.FirstTriageAt) | $($row.TriageBusinessDays) | $($row.TriageStatus) | $($row.P0LabelAt) | $($row.P0CloseDays) | $($row.P0Status) |")
     }
 }
+$lines.Add("")
+$lines.Add("Triage is measured from issue creation to the first Type, Status, or Priority label event.")
 $lines.Add("")
 $lines.Add("P0 resolution is measured from the first ``P0`` label event to issue close.")
 

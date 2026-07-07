@@ -70,13 +70,17 @@ Before requesting an official Tier change:
    ```
 2. Preserve the Markdown output as release evidence. Use `-OutFile <path>` when
    a file artifact is needed.
-3. Re-run the commands in `Current Snapshot` if the collector reports missing
+3. Use `-Since <yyyy-mm-dd>` to scope the report to the evidence window being
+   used for a Tier request. The window includes issues created at or after the
+   start date and issues first labeled `P0` at or after the start date, because
+   triage and P0 resolution use different official start events.
+4. Re-run the commands in `Current Snapshot` if the collector reports missing
    labels or disabled issue tracking.
-4. For every valid issue, verify that the first Type, Status, or Priority label
+5. For every valid issue, verify that the first Type, Status, or Priority label
    was applied within two business days of `createdAt`.
-5. For every issue labeled `P0`, verify that the issue was closed within seven
+6. For every issue labeled `P0`, verify that the issue was closed within seven
    days of the `P0` label event.
-6. If there are no issues or no P0 issues, record that the period had no
+7. If there are no issues or no P0 issues, record that the period had no
    measurable incident for that metric rather than treating it as historical
    proof of SLA performance.
 
@@ -86,3 +90,5 @@ timestamps.
 
 The collector uses `gh api repos/<owner>/<repo>/issues/<number>/timeline` to
 retrieve label event timestamps for issue records included in the report.
+It reports the first triage label name and timestamp, triage business-day
+latency, and P0 label-to-close latency for each inspected issue.
