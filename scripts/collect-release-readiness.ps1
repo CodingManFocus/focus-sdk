@@ -93,7 +93,7 @@ function Add-CheckStatus {
     })
 }
 
-function Test-EvidenceOnlyPath {
+function Test-NonRuntimeConformancePath {
     param([string]$Path)
 
     $normalized = $Path.Replace("\", "/")
@@ -113,6 +113,9 @@ function Test-EvidenceOnlyPath {
         return $true
     }
     if ($normalized -eq "scripts/collect-release-readiness.ps1") {
+        return $true
+    }
+    if ($normalized -match '(^|/)src/[^/]*Test/') {
         return $true
     }
     return $false
@@ -169,10 +172,10 @@ if (-not [string]::IsNullOrWhiteSpace($conformanceRevision)) {
         if ($mergeBase.ExitCode -eq 0) {
             $changedOutput = & git diff --name-only "$conformanceRevision..HEAD"
             $conformanceChangedFiles = @($changedOutput | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-            $runtimeChangedFiles = @($conformanceChangedFiles | Where-Object { -not (Test-EvidenceOnlyPath $_) })
+            $runtimeChangedFiles = @($conformanceChangedFiles | Where-Object { -not (Test-NonRuntimeConformancePath $_) })
             if ($runtimeChangedFiles.Count -eq 0) {
                 $conformanceEvidenceStatus = "PASS"
-                $conformanceEvidenceText = "$conformanceEvidenceText; only evidence/docs changes since conformance revision"
+                $conformanceEvidenceText = "$conformanceEvidenceText; only documentation, evidence, or test-only changes since conformance revision"
             } else {
                 $conformanceEvidenceText = "$conformanceEvidenceText; runtime-impacting changes since conformance revision: $($runtimeChangedFiles -join ', ')"
             }

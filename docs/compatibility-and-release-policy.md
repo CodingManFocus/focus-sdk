@@ -120,11 +120,11 @@ gate results.
 When `-RunChecks` is used, each default Gradle validation gate is also recorded
 as a PASS/BLOCKED row in the Tier 1 release checks table.
 
-The collector treats documentation, GitHub workflow, and release-evidence script
-changes after the last recorded conformance run as evidence-only changes. Any
-runtime, protocol, build, transport, auth, or conformance harness change after
-the recorded revision requires a fresh full conformance run before requesting
-Tier advancement.
+The collector treats documentation, GitHub workflow, release-evidence script,
+and test source-set changes after the last recorded conformance run as
+non-runtime changes. Any runtime, protocol, build, production source,
+transport, auth, or conformance harness change after the recorded revision
+requires a fresh full conformance run before requesting Tier advancement.
 
 For code changes, choose the narrowest validation that covers the affected
 surface. The default release-readiness gate is:
