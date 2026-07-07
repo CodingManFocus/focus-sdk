@@ -377,15 +377,29 @@ resource metadata.
 
 During runtime, a server can return `403 Forbidden` with
 `error="insufficient_scope"` and a new `scope`. Use `mcpOAuthStepUpScope` to
-extract the requested step-up scope and repeat authorization with a retry limit.
+extract the requested step-up scope and `McpOAuthStepUpRetryTracker` to avoid
+repeating failed step-up attempts for the same resource, operation, and scope.
 
 ```kotlin
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthStepUpRetryKey
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthStepUpRetryTracker
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStepUpScope
 
+val retryTracker = McpOAuthStepUpRetryTracker(maxAttempts = 2)
 val stepUpScope = mcpOAuthStepUpScope(wwwAuthenticateHeader)
-if (stepUpScope != null) {
-    // Start a new authorization-code flow using stepUpScope.
-    // Retry the original operation only a bounded number of times.
+val stepUpKey = stepUpScope?.let {
+    McpOAuthStepUpRetryKey(
+        resource = serverUrl,
+        operation = "tools/call:write_file",
+        scope = it,
+    )
+}
+if (
+    stepUpKey != null &&
+    retryTracker.tryRecordAttempt(stepUpKey)
+) {
+    // Start a new authorization-code flow using stepUpScope, then retry the original operation.
+    // Call retryTracker.reset(stepUpKey) after the operation succeeds.
 }
 ```
 

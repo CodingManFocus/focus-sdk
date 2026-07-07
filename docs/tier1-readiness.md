@@ -117,8 +117,9 @@ Known gaps and risks:
   Streamable HTTP bootstrap helpers, and dynamic Streamable HTTP bearer-header
   coverage. Server auth now has Protected Resource Metadata, Bearer challenge
   helpers, request-level bearer guard helpers, and verified JWT claims
-  validation helpers, but the full SDK OAuth flow still needs browser-launching
-  and host-specific token vault integration guidance where appropriate.
+  validation helpers, plus insufficient-scope parsing and bounded step-up retry
+  tracking. The full SDK OAuth flow still needs browser-launching and
+  host-specific token vault integration guidance where appropriate.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, non-JVM
   JWT assertion provider wiring, JWKS publication, and JWT/JWKS verification
   responsibilities, but the full SDK OAuth flow still needs integration beyond

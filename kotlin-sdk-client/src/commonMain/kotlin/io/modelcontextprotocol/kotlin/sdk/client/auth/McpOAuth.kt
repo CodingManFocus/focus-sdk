@@ -1110,6 +1110,74 @@ public fun mcpOAuthStepUpScope(wwwAuthenticate: String?): String? {
 }
 
 /**
+ * Identifies a step-up authorization retry attempt.
+ *
+ * @property resource MCP resource server URL or resource identifier being accessed.
+ * @property operation Stable operation identifier chosen by the application, for example a tool
+ * name, resource URI, prompt name, or request type.
+ * @property scope Scope string requested by an `insufficient_scope` challenge.
+ */
+public data class McpOAuthStepUpRetryKey(
+    public val resource: String,
+    public val operation: String,
+    public val scope: String,
+)
+
+/**
+ * Tracks bounded step-up authorization attempts.
+ *
+ * MCP clients should avoid repeating step-up authorization for the same resource and operation
+ * after it has already failed. This tracker records attempts by resource, operation, and scope so
+ * applications can stop retry loops and surface a permanent authorization failure.
+ */
+public class McpOAuthStepUpRetryTracker(private val maxAttempts: Int = 2) {
+    private val attempts = mutableMapOf<McpOAuthStepUpRetryKey, Int>()
+
+    init {
+        require(maxAttempts > 0) {
+            "maxAttempts must be positive"
+        }
+    }
+
+    /**
+     * Records and allows an attempt when the retry limit has not been reached.
+     */
+    public fun tryRecordAttempt(resource: String, operation: String, scope: String): Boolean =
+        tryRecordAttempt(McpOAuthStepUpRetryKey(resource, operation, scope))
+
+    /**
+     * Records and allows an attempt when the retry limit has not been reached.
+     */
+    public fun tryRecordAttempt(key: McpOAuthStepUpRetryKey): Boolean {
+        val currentAttempts = attempts[key] ?: 0
+        if (currentAttempts >= maxAttempts) {
+            return false
+        }
+        attempts[key] = currentAttempts + 1
+        return true
+    }
+
+    /**
+     * Returns the number of attempts recorded for [key].
+     */
+    public fun attemptsFor(key: McpOAuthStepUpRetryKey): Int = attempts[key] ?: 0
+
+    /**
+     * Clears attempt history for a specific key, for example after a successful operation.
+     */
+    public fun reset(key: McpOAuthStepUpRetryKey) {
+        attempts.remove(key)
+    }
+
+    /**
+     * Clears all tracked attempt history.
+     */
+    public fun resetAll() {
+        attempts.clear()
+    }
+}
+
+/**
  * Returns a request builder that applies a bearer token to every outgoing HTTP request.
  */
 public fun mcpBearerAuth(accessToken: String): HttpRequestBuilder.() -> Unit = mcpBearerAuth { accessToken }

@@ -1085,6 +1085,57 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should bound step up retry attempts by resource operation and scope`() {
+        val tracker = McpOAuthStepUpRetryTracker(maxAttempts = 2)
+        val key = McpOAuthStepUpRetryKey(
+            resource = "https://mcp.example.com/mcp",
+            operation = "tools/call:write_file",
+            scope = "files:write",
+        )
+
+        assertEquals(true, tracker.tryRecordAttempt(key))
+        assertEquals(true, tracker.tryRecordAttempt(key))
+        assertEquals(false, tracker.tryRecordAttempt(key))
+        assertEquals(2, tracker.attemptsFor(key))
+
+        assertEquals(
+            true,
+            tracker.tryRecordAttempt(
+                key.copy(scope = "files:read files:write"),
+            ),
+        )
+    }
+
+    @Test
+    fun `should reset step up retry attempts`() {
+        val tracker = McpOAuthStepUpRetryTracker(maxAttempts = 1)
+        val key = McpOAuthStepUpRetryKey(
+            resource = "https://mcp.example.com/mcp",
+            operation = "resources/read:file",
+            scope = "files:read",
+        )
+
+        assertEquals(true, tracker.tryRecordAttempt(key))
+        assertEquals(false, tracker.tryRecordAttempt(key))
+
+        tracker.reset(key)
+
+        assertEquals(0, tracker.attemptsFor(key))
+        assertEquals(true, tracker.tryRecordAttempt(key))
+
+        tracker.resetAll()
+
+        assertEquals(0, tracker.attemptsFor(key))
+    }
+
+    @Test
+    fun `should reject non positive step up retry limit`() {
+        assertFailsWith<IllegalArgumentException> {
+            McpOAuthStepUpRetryTracker(maxAttempts = 0)
+        }
+    }
+
+    @Test
     fun `should select challenge scope before metadata scopes`() {
         assertEquals(
             "files:read",
