@@ -53,28 +53,28 @@ Any `[extra-args]` are forwarded to the conformance runner (e.g. `--verbose`).
 
 ```
 conformance-test/
-├── run-conformance.sh            # Single entry point script
-├── conformance-baseline.yml      # Expected failures for known SDK limitations
-└── src/main/kotlin/.../conformance/
-    ├── ConformanceServer.kt      # Ktor server entry point (StreamableHTTP, DNS rebinding, EventStore)
-    ├── ConformanceClient.kt      # Scenario-based client entry point (MCP_CONFORMANCE_SCENARIO routing)
-    ├── ConformanceTools.kt       # 18 tool registrations
-    ├── ConformanceResources.kt   # 5 resource registrations (static, binary, template, watched, dynamic)
-    ├── ConformancePrompts.kt     # 5 prompt registrations (simple, args, image, embedded, dynamic)
-    ├── ConformanceCompletions.kt # completion/complete handler
-    ├── InMemoryEventStore.kt     # EventStore impl for SSE resumability (SEP-1699)
-    └── auth/                     # OAuth client for active auth scenarios
-        ├── registration.kt       # Scenario handler registration
-        ├── utils.kt              # Shared utilities: JSON instance, constants, extractOrigin()
-        ├── discovery.kt          # Protected Resource Metadata + AS Metadata discovery
-        ├── pkce.kt               # PKCE code verifier/challenge generation + AS capability check
-        ├── tokenExchange.kt      # Token endpoint interaction (exchange code, error handling)
-        ├── authCodeFlow.kt       # Main Authorization Code flow handler (runAuthClient + interceptor)
-        ├── scopeHandling.kt      # Scope selection strategy + step-up 403 handling
-        ├── clientRegistration.kt # Client registration logic (pre-reg, CIMD, dynamic)
-        ├── JWTScenario.kt              # Client Credentials JWT scenario
-        ├── basicScenario.kt            # Client Credentials Basic scenario
-        └── crossAppAccessScenario.kt   # Cross-App Access (SEP-990) scenario
+|-- run-conformance.sh            # Single entry point script
+|-- conformance-baseline.yml      # Expected failures for known SDK limitations
+`-- src/main/kotlin/.../conformance/
+    |-- ConformanceServer.kt      # Ktor server entry point (StreamableHTTP, DNS rebinding, EventStore)
+    |-- ConformanceClient.kt      # Scenario-based client entry point (MCP_CONFORMANCE_SCENARIO routing)
+    |-- ConformanceTools.kt       # 18 tool registrations
+    |-- ConformanceResources.kt   # 5 resource registrations (static, binary, template, watched, dynamic)
+    |-- ConformancePrompts.kt     # 5 prompt registrations (simple, args, image, embedded, dynamic)
+    |-- ConformanceCompletions.kt # completion/complete handler
+    |-- InMemoryEventStore.kt     # EventStore impl for SSE resumability (SEP-1699)
+    `-- auth/                     # OAuth client for active auth scenarios
+        |-- registration.kt       # Scenario handler registration
+        |-- utils.kt              # Shared utilities: JSON instance, constants, extractOrigin()
+        |-- discovery.kt          # Protected Resource Metadata + AS Metadata discovery
+        |-- pkce.kt               # PKCE code verifier/challenge generation + AS capability check
+        |-- tokenExchange.kt      # Token endpoint interaction (exchange code, error handling)
+        |-- authCodeFlow.kt       # Main Authorization Code flow handler (runAuthClient + interceptor)
+        |-- scopeHandling.kt      # Scope selection strategy + step-up 403 handling
+        |-- clientRegistration.kt # Client registration logic (pre-reg, CIMD, dynamic)
+        |-- JWTScenario.kt        # Client Credentials JWT scenario
+        |-- basicScenario.kt      # Client Credentials Basic scenario
+        `-- crossAppAccessScenario.kt # Cross-App Access (SEP-990) scenario
 ```
 
 ## Test Suites
