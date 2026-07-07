@@ -186,6 +186,12 @@ if ($supportedBlock.Success) {
 }
 $supportedProtocols = @($supportedProtocols | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 $missingFeatureDocumentation = @($featureDocumentationPaths | Where-Object { -not (Test-Path (Join-Path $root $_)) })
+$missingFeatureDocumentationExamples = @(
+    $featureDocumentationPaths | Where-Object {
+        $path = Join-Path $root $_
+        -not (Test-Path $path) -or -not (Select-String -Path $path -SimpleMatch '```' -Quiet)
+    }
+)
 
 $conformanceText = Get-Content -Raw -Path $conformanceStatus
 $conformanceRevision = Get-RegexValue -Text $conformanceText -Pattern 'Verified revision:\s*`([^`]+)`'
@@ -236,6 +242,7 @@ Add-CheckResult -Checks $checks -Name "Tier advancement evidence index present" 
 Add-CheckResult -Checks $checks -Name "Maintenance evidence present" -Pass (Test-Path $maintenanceEvidence) -Evidence $maintenanceEvidence
 Add-CheckResult -Checks $checks -Name "Release notes draft present" -Pass (Test-Path $releaseNotes) -Evidence $releaseNotes
 Add-CheckResult -Checks $checks -Name "Feature documentation inventory present" -Pass ($missingFeatureDocumentation.Count -eq 0) -Evidence $(if ($missingFeatureDocumentation.Count -eq 0) { $featureDocumentationPaths -join ", " } else { "missing=$($missingFeatureDocumentation -join ', ')" })
+Add-CheckResult -Checks $checks -Name "Feature documentation examples present" -Pass ($missingFeatureDocumentationExamples.Count -eq 0) -Evidence $(if ($missingFeatureDocumentationExamples.Count -eq 0) { "all inventory entries contain fenced examples" } else { "missing examples=$($missingFeatureDocumentationExamples -join ', ')" })
 
 $maintenanceCommand = ""
 $maintenanceResult = $null

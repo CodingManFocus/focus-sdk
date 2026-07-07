@@ -49,7 +49,8 @@ Blocking items:
 ## Feature Documentation Inventory
 
 The release readiness collector verifies that these documentation entry points
-exist before a report can support a Tier advancement request:
+exist and contain fenced examples before a report can support a Tier
+advancement request:
 
 | Area | Evidence |
 | --- | --- |
