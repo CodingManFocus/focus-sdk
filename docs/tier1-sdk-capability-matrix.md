@@ -15,7 +15,7 @@ Official MCP references:
 - C# SDK docs: https://csharp.sdk.modelcontextprotocol.io/
 - Go SDK docs: https://go.sdk.modelcontextprotocol.io/
 
-As of 2026-07-06, the official SDK listing marks TypeScript, Python, C#, and
+As of 2026-07-07, the official SDK listing marks TypeScript, Python, C#, and
 Go as Tier 1, while Kotlin is still Tier 3.
 
 Tier 1 requires:
@@ -60,7 +60,7 @@ Status legend:
 | --- | --- | --- | --- |
 | Official listing | Gap | Official SDK listing marks Kotlin as Tier 3. | Request tier advancement only after evidence is complete. |
 | Target protocol version | Ready | `LATEST_PROTOCOL_VERSION` is `2025-11-25`; supported versions are documented in `docs/compatibility-and-release-policy.md`. | Keep updated when the stable MCP spec changes. |
-| Applicable conformance | Ready, keep fresh | `docs/conformance-status.md` records a clean full run at `38f7ae6` for server, client core, and client auth. | Refresh after protocol, transport, auth, or runner changes. |
+| Applicable conformance | Ready, keep fresh | `docs/conformance-status.md` records a clean full run at `38f7ae6` for server, client core, and client auth. `scripts/collect-release-readiness.ps1` verifies that the current HEAD is covered when only documentation, evidence, or test-only changes have landed after that run. | Refresh after protocol, transport, auth, or runner changes. |
 | Client and server APIs | Ready | `Client` exposes typed operations for ping, prompts, resources, subscriptions, tools, completion, logging level, roots, and elicitation handlers; `Server` exposes registries and handlers for tools, prompts, resources, resource templates, sampling, roots, elicitation, logging, and notifications. | Add feature-specific guide pages beyond README. |
 | Protocol primitives | Ready | Core/shared types and `Protocol` cover JSON-RPC framing, lifecycle, ping, cancellation, progress, pagination, metadata, capabilities, and request correlation. | Continue schema parity audits against the stable spec. |
 | Tools | Ready, keep fresh | Server `addTool`/`removeTool`; client `listTools`/`callTool`; README examples; `docs/tools.md` covers structured output, output schemas, no-parameter schemas, catalog notifications, error handling, and security guidance. | Keep examples current after tool type or validation changes. |
@@ -79,11 +79,11 @@ Status legend:
 | WebSocket transport | Ready, non-core | Client/server WebSocket transport exists; README documents it as useful behind WebSocket-friendly proxies. | Treat as additional Kotlin value, not a Tier 1 requirement. |
 | In-memory testing transport | Ready | `ChannelTransport.createLinkedPair()` is published in `kotlin-sdk-testing`. | Add more examples using in-memory client/server tests. |
 | Tasks | Extension | Core task extension types and tests exist; roadmap explicitly excludes Tasks from Tier 1 blocking scope. | Keep documented as experimental/extension work only. |
-| Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
+| Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, omitted-gate BLOCKED reporting, maintenance evidence status, conformance coverage checks, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete and generate a release readiness report with `-RunChecks -RunMaintenanceCheck`. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
 | Documentation coverage | Ready, keep fresh | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, host validation, logging, pagination, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Keep feature, auth, and security examples current after API or spec changes. |
-| Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `docs/maintenance-evidence.md` records that GitHub Issues are enabled, the required labels were verified on 2026-07-07, and the current issue inventory was empty. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
+| Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `docs/maintenance-evidence.md` records that GitHub Issues are enabled, the required labels were verified on 2026-07-07, and the current issue inventory was empty. `scripts/collect-maintenance-evidence.ps1` now emits a Tier Evidence Status, and release readiness marks the current empty issue window as BLOCKED rather than treating it as historical SLA proof. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
 

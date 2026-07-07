@@ -141,7 +141,9 @@ Known gaps and risks:
   tracked in `docs/maintenance-evidence.md`. GitHub Issues are enabled and the
   required labels are present, but operational history showing that triage and
   P0 resolution metrics are being met still needs to be collected before a Tier
-  request.
+  request. The maintenance collector now reports a Tier Evidence Status, and
+  release readiness keeps the current empty issue window BLOCKED rather than
+  treating it as historical SLA proof.
 - Tasks are experimental/extension work and should not block Tier 1 unless the
   SDK explicitly claims production support for the extension.
 - The conformance README must stay synchronized with
@@ -156,7 +158,9 @@ Immediate priority after the 2026-07-07 Tier 1 audit:
    platform validation, and compatibility evidence.
 3. Collect operational evidence that issue triage and P0 resolution metrics are
    being met, and embed that evidence in release readiness reports with
-   `scripts/collect-release-readiness.ps1 -RunMaintenanceCheck`.
+   `scripts/collect-release-readiness.ps1 -RunMaintenanceCheck`. Current
+   release readiness correctly keeps this BLOCKED while there are no issue
+   records to measure.
 4. Limit further OAuth work to spec-required, conformance-relevant, or
    Tier-1-SDK-precedented SDK surface. Treat host-specific token vaults as
    integration guidance, not a Tier 1 blocker.
