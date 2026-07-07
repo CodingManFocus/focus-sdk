@@ -230,6 +230,9 @@ if ($RunMaintenanceCheck) {
     Add-CheckResult -Checks $checks -Name "Maintenance collector run" -Pass ($maintenanceResult.ExitCode -eq 0) -Evidence "repo=$MaintenanceRepo; since=$MaintenanceSince; exit=$($maintenanceResult.ExitCode)"
     $maintenanceEvidenceStatus = if ($maintenanceResult.ExitCode -eq 0) { Get-MaintenanceEvidenceStatus -Text $maintenanceResult.Output } else { "BLOCKED" }
     Add-CheckStatus -Checks $checks -Name "Maintenance SLA evidence" -Status $maintenanceEvidenceStatus -Evidence "repo=$MaintenanceRepo; since=$MaintenanceSince"
+} else {
+    Add-CheckStatus -Checks $checks -Name "Maintenance collector run" -Status "BLOCKED" -Evidence "Re-run with -RunMaintenanceCheck before using this report as Tier advancement evidence."
+    Add-CheckStatus -Checks $checks -Name "Maintenance SLA evidence" -Status "BLOCKED" -Evidence "No maintenance evidence window was collected."
 }
 
 $validationResults = @()
@@ -250,6 +253,8 @@ if ($RunChecks) {
         }
         Add-CheckResult -Checks $checks -Name "Validation: $($command -join ' ')" -Pass ($result.ExitCode -eq 0) -Evidence "$commandText exit=$($result.ExitCode)"
     }
+} else {
+    Add-CheckStatus -Checks $checks -Name "Validation gates executed" -Status "BLOCKED" -Evidence "Re-run with -RunChecks before using this report as release-candidate evidence."
 }
 
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
