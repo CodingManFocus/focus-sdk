@@ -110,9 +110,9 @@ Known gaps and risks:
 - The latest recorded conformance run is tracked in
   `docs/conformance-status.md`; it must be refreshed after protocol, transport,
   auth, or conformance-runner changes.
-- The current artifact version is `0.14.0`; the official Tier 1 stable release
-  criterion still requires a `1.0.0` or later release without a pre-release
-  identifier.
+- The artifact version is now `1.0.0`; the remaining release blocker is a
+  published stable artifact backed by final validation and maintenance
+  evidence.
 - Client auth now has initial reusable discovery, bearer-header, PKCE S256,
   authorization request, authorization callback parsing with state validation,
   reusable authorization-code flow preparation/completion, authorization-code
@@ -158,8 +158,8 @@ Known gaps and risks:
 Immediate priority after the 2026-07-07 Tier 1 audit:
 
 1. Keep full conformance evidence current at HEAD.
-2. Prepare `1.0.0` release gates: API compatibility, release notes,
-   platform validation, and compatibility evidence.
+2. Finish `1.0.0` release gates: API compatibility, release notes,
+   platform validation, publication evidence, and compatibility evidence.
 3. Collect operational evidence that issue triage and P0 resolution metrics are
    being met, and embed that evidence in release readiness reports with
    `scripts/collect-release-readiness.ps1 -RunMaintenanceCheck`. Current

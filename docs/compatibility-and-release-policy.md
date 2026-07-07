@@ -5,7 +5,7 @@ It complements the dependency policy and the Tier 1 readiness roadmap.
 
 ## Current Status
 
-- Current artifact version: `0.14.0`.
+- Current artifact version: `1.0.0`.
 - Current stable MCP protocol target: `2025-11-25`.
 - Supported MCP protocol versions:
   - `2025-11-25`
@@ -18,8 +18,8 @@ It complements the dependency policy and the Tier 1 readiness roadmap.
 
 The official MCP Tier 1 criteria require a stable release at version `1.0.0`
 or higher without a pre-release identifier. This fork is not release-policy
-complete for Tier 1 until the SDK is ready to publish a `1.0.0` or later
-artifact with the evidence described below.
+complete for Tier 1 until the SDK publishes the `1.0.0` or later artifact with
+the evidence described below.
 
 Official references:
 

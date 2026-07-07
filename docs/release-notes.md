@@ -5,8 +5,9 @@ It is a draft until a `1.0.0` or later artifact is published.
 
 ## Unreleased: 1.0.0 Release Candidate Draft
 
-Status: not published. The current artifact version is still `0.14.0`, so this
-SDK is not release-complete for Tier 1.
+Status: not published. The artifact version is `1.0.0`, but this SDK is not
+release-complete for Tier 1 until final validation, maintenance evidence, and
+publication evidence are complete.
 
 Supported MCP protocol versions:
 
@@ -41,7 +42,7 @@ Current Tier 1 evidence links:
 
 Known release blockers:
 
-- Publish a stable `1.0.0` or later artifact without a pre-release identifier.
+- Publish the stable `1.0.0` artifact without a pre-release identifier.
 - Generate a release readiness report with
   `scripts/collect-release-readiness.ps1 -RunChecks -RunMaintenanceCheck`.
 - Preserve current full conformance evidence for all runtime-affecting changes.

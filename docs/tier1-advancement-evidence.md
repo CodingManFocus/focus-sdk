@@ -17,9 +17,8 @@ Status: `BLOCKED`
 Blocking items:
 
 - The official SDK listing still marks Kotlin as Tier 3.
-- The artifact version is still `0.14.0`; Tier 1 requires a stable
-  production-ready release such as `1.0.0` or later without a pre-release
-  identifier.
+- The artifact version is `1.0.0`, but the stable artifact has not yet been
+  published with final validation evidence.
 - Maintenance SLA evidence is not yet sufficient. GitHub Issues and labels are
   configured, but the current issue history does not prove two-business-day
   triage or seven-day P0 resolution.
@@ -38,7 +37,7 @@ Blocking items:
 | Streamable HTTP, stdio, and compatibility transports | `docs/streamable-http.md`, README examples, transport tests, and conformance coverage. | Ready, keep fresh |
 | Authorization/OAuth | `docs/auth-oauth.md`, client/server OAuth helpers, client-auth conformance coverage, and the capability matrix. | Partial |
 | Comprehensive documentation with examples | README plus feature guides for auth/OAuth, Streamable HTTP, elicitation, host validation, logging, pagination, prompts/completion, resources, roots, sampling, and tools. | Ready, keep fresh |
-| Stable release and clear versioning | `docs/compatibility-and-release-policy.md` and `docs/release-notes.md`. | Blocked on `1.0.0` |
+| Stable release and clear versioning | `gradle.properties`, `docs/compatibility-and-release-policy.md`, and `docs/release-notes.md`. | Blocked on publication evidence |
 | Dependency policy | `docs/dependency-update-policy.md`. | Ready |
 | Published roadmap | `docs/tier1-readiness.md`. | Ready |
 | Issue triage within two business days | `docs/maintenance-policy.md`, `docs/maintenance-evidence.md`, and `scripts/collect-maintenance-evidence.ps1`. | Blocked on operational evidence |
