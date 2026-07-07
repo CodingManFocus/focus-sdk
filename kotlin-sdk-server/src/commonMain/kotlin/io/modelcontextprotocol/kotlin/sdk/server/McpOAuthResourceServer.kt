@@ -40,6 +40,7 @@ public data class McpOAuthProtectedResourceMetadata(
 /**
  * Result of validating an MCP OAuth bearer token.
  */
+@Suppress("detekt.AbstractClassCanBeInterface")
 public sealed class McpOAuthBearerTokenValidationResult {
     /**
      * The token is valid for this MCP server.
@@ -62,6 +63,13 @@ public sealed class McpOAuthBearerTokenValidationResult {
  * Validates an access token and returns the token scopes when it is valid.
  */
 public fun interface McpOAuthBearerTokenValidator {
+    /**
+     * Validates an access token from an incoming MCP HTTP request.
+     *
+     * @param call current Ktor application call.
+     * @param accessToken bearer token value without the `Bearer` prefix.
+     * @return validation result indicating whether the token is valid and which scopes it grants.
+     */
     public suspend fun validate(call: ApplicationCall, accessToken: String): McpOAuthBearerTokenValidationResult
 }
 
@@ -317,7 +325,7 @@ private fun JsonObject.numericDateClaim(key: String): Long? = (this[key] as? Jso
 private fun JsonObject.audienceClaim(): Set<String>? {
     val element = this["aud"] ?: return null
     return when (element) {
-        is JsonPrimitive -> element.stringValueOrNull()?.let { setOf(it) } ?: emptySet()
+        is JsonPrimitive -> element.stringValueOrNull()?.let { setOf(it) }.orEmpty()
         is JsonArray -> element.mapNotNull { it.stringValueOrNull() }.toSet()
         else -> emptySet()
     }
@@ -340,4 +348,4 @@ private fun String?.scopeSet(): Set<String> = this?.trim()
     ?.split(Regex("\\s+"))
     ?.filter { it.isNotEmpty() }
     ?.toSet()
-    ?: emptySet()
+    .orEmpty()

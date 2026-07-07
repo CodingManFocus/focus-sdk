@@ -132,10 +132,15 @@ and test source-set changes after the last recorded conformance run as
 non-runtime changes. Any runtime, protocol, build, production source,
 transport, auth, or conformance harness change after the recorded revision
 requires a fresh full conformance run before requesting Tier advancement.
+Uncommitted runtime-impacting changes also keep the conformance coverage check
+BLOCKED, even when the last committed `HEAD` is otherwise covered by the
+recorded conformance revision.
 
 For code changes, choose the narrowest validation that covers the affected
 surface. The default release-readiness gate is:
 
+- `./gradlew ktlintCheck`
+- `./gradlew detekt`
 - `./gradlew :kotlin-sdk-core:jvmTest`
 - `./gradlew :kotlin-sdk-client:jvmTest`
 - `./gradlew :kotlin-sdk-server:jvmTest`

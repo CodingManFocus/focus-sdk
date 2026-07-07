@@ -253,6 +253,11 @@ public data class McpOAuthClientCredentials(public val clientId: String, public 
  * Applications should create short-lived assertions with an OAuth/JWT library.
  */
 public fun interface McpOAuthClientAssertionProvider {
+    /**
+     * Returns a signed JWT client assertion for the next token endpoint request.
+     *
+     * @return compact serialized JWT client assertion.
+     */
     public suspend fun assertion(): String
 }
 
@@ -389,6 +394,11 @@ public data class McpOAuthTokenStoreSnapshot(
     public val scope: String? = null,
     public val raw: JsonObject = JsonObject(emptyMap()),
 ) {
+    /**
+     * Converts this snapshot to a token response shape for initializing OAuth helpers.
+     *
+     * @return token response containing the access token, refresh token, and raw authorization-server fields.
+     */
     public fun toTokenResponse(): McpOAuthTokenResponse = McpOAuthTokenResponse(
         accessToken = accessToken,
         tokenType = tokenType,
@@ -398,6 +408,13 @@ public data class McpOAuthTokenStoreSnapshot(
         raw = raw,
     )
 
+    /**
+     * Returns whether the access token should be refreshed before use.
+     *
+     * @param currentEpochSeconds current Unix time in seconds.
+     * @param refreshSkewSeconds number of seconds before expiry to treat the token as refreshable.
+     * @return `true` when an expiry is known and falls within the refresh window.
+     */
     public fun shouldRefresh(currentEpochSeconds: Long, refreshSkewSeconds: Long = 60): Boolean =
         expiresAtEpochSeconds?.let { currentEpochSeconds + refreshSkewSeconds >= it } ?: false
 }
@@ -505,14 +522,36 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
     public val expiresAtEpochSeconds: Long?
         get() = tokenExpiresAtEpochSeconds
 
+    /**
+     * Replaces the current token response without recalculating an absolute expiry time.
+     *
+     * Existing refresh tokens are retained when [tokens] omits a replacement refresh token.
+     *
+     * @param tokens new token response.
+     */
     public fun update(tokens: McpOAuthTokenResponse) {
         updateTokens(tokens, receivedAtEpochSeconds = null)
     }
 
+    /**
+     * Replaces the current token response and records its absolute expiry time.
+     *
+     * Existing refresh tokens are retained when [tokens] omits a replacement refresh token.
+     *
+     * @param tokens new token response.
+     * @param receivedAtEpochSeconds Unix time in seconds when [tokens] was received.
+     */
     public fun update(tokens: McpOAuthTokenResponse, receivedAtEpochSeconds: Long) {
         updateTokens(tokens, receivedAtEpochSeconds)
     }
 
+    /**
+     * Returns whether the stored access token should be refreshed before use.
+     *
+     * @param currentEpochSeconds current Unix time in seconds.
+     * @param refreshSkewSeconds number of seconds before expiry to treat the token as refreshable.
+     * @return `true` when an expiry is known and falls within the refresh window.
+     */
     public fun shouldRefresh(currentEpochSeconds: Long, refreshSkewSeconds: Long = 60): Boolean =
         snapshot().shouldRefresh(currentEpochSeconds, refreshSkewSeconds)
 
@@ -524,6 +563,11 @@ public class McpOAuthTokenStore(initialTokens: McpOAuthTokenResponse) {
         onUpdate?.invoke(snapshot())
     }
 
+    /**
+     * Returns the current token state as a persistable snapshot.
+     *
+     * @return snapshot containing current tokens, expiry, scope, and raw authorization-server fields.
+     */
     public fun snapshot(): McpOAuthTokenStoreSnapshot = McpOAuthTokenStoreSnapshot(
         accessToken = accessToken,
         refreshToken = refreshToken,

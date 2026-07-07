@@ -176,6 +176,11 @@ $conformanceRevision = Get-RegexValue -Text $conformanceText -Pattern 'Verified 
 $conformanceDate = Get-RegexValue -Text $conformanceText -Pattern 'Last verified:\s*(\d{4}-\d{2}-\d{2})'
 $conformanceChangedFiles = @()
 $runtimeChangedFiles = @()
+$dirtyTrackedFiles = @(& git diff --name-only HEAD | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$dirtyUntrackedFiles = @(& git ls-files --others --exclude-standard | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$dirtyConformanceChangedFiles = @($dirtyTrackedFiles + $dirtyUntrackedFiles)
+$dirtyConformanceChangedFiles = @($dirtyConformanceChangedFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+$dirtyRuntimeChangedFiles = @($dirtyConformanceChangedFiles | Where-Object { -not (Test-NonRuntimeConformancePath $_) })
 $conformanceEvidenceStatus = "BLOCKED"
 $conformanceEvidenceText = "conformance revision=$conformanceRevision, HEAD=$gitHead, date=$conformanceDate"
 if (-not [string]::IsNullOrWhiteSpace($conformanceRevision)) {
@@ -195,6 +200,10 @@ if (-not [string]::IsNullOrWhiteSpace($conformanceRevision)) {
             }
         }
     }
+}
+if ($dirtyRuntimeChangedFiles.Count -gt 0) {
+    $conformanceEvidenceStatus = "BLOCKED"
+    $conformanceEvidenceText = "$conformanceEvidenceText; uncommitted runtime-impacting changes: $($dirtyRuntimeChangedFiles -join ', ')"
 }
 
 $checks = New-Object System.Collections.Generic.List[object]
@@ -238,6 +247,8 @@ if ($RunMaintenanceCheck) {
 $validationResults = @()
 if ($RunChecks) {
     $commands = @(
+        @("ktlintCheck"),
+        @("detekt"),
         @("apiCheck"),
         @(":kotlin-sdk-core:jvmTest"),
         @(":kotlin-sdk-client:jvmTest"),

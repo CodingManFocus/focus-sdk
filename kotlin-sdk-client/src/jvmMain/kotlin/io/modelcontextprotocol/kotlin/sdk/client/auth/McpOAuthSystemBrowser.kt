@@ -33,7 +33,7 @@ internal fun openMcpOAuthAuthorizationUrlInBrowser(
     try {
         browse(uri)
         return true
-    } catch (e: UnsupportedOperationException) {
+    } catch (_: UnsupportedOperationException) {
         return false
     } catch (e: SecurityException) {
         throw McpOAuthException("Failed to open OAuth authorization URL in browser", e)

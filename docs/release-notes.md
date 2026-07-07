@@ -23,7 +23,8 @@ Conformance evidence:
 
 Public API compatibility:
 
-- Public API compatibility is checked with `./gradlew apiCheck`.
+- Release readiness checks include `./gradlew ktlintCheck`, `./gradlew detekt`,
+  and `./gradlew apiCheck`.
 - Intentional public API changes require `./gradlew apiDump` and a note in this
   file describing whether each change is additive, behavioral, deprecated, or
   breaking.
