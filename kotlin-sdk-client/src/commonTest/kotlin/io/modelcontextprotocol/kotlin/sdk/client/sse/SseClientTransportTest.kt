@@ -9,6 +9,8 @@ import io.ktor.client.request.HttpRequestData
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCNotification
 import kotlinx.coroutines.test.runTest
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -92,6 +94,7 @@ class SseClientTransportTest {
         engine.close()
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     @Test
     fun `onClose callback fires when the SSE stream is disconnected by the server`() = runTest {
         // Given
@@ -100,8 +103,8 @@ class SseClientTransportTest {
         // And
         val engine = CapturingSseClientEngine(endpoint = "/messages?sessionId=abc")
         val transport = sseTransport(sseUrl, engine)
-        var onCloseFired = false
-        transport.onClose { onCloseFired = true }
+        val onCloseFired = AtomicBoolean(false)
+        transport.onClose { onCloseFired.store(true) }
 
         // When
         transport.start()
@@ -109,7 +112,7 @@ class SseClientTransportTest {
 
         // Then
         eventually(2.seconds) {
-            onCloseFired shouldBe true
+            onCloseFired.load() shouldBe true
         }
 
         // Cleanup

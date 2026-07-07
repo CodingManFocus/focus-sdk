@@ -11,6 +11,8 @@ import io.modelcontextprotocol.kotlin.sdk.types.RPCError.ErrorCode.CONNECTION_CL
 import io.modelcontextprotocol.kotlin.sdk.types.toJSON
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -74,12 +76,13 @@ abstract class AbstractClientTransportLifecycleTest<T : AbstractClientTransport>
         }
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     @Test
     fun `should call onClose exactly once`() = runTest {
         val transport = createTransport()
 
-        var closeCallCount = 0
-        transport.onClose { closeCallCount++ }
+        val closeCallCount = AtomicInt(0)
+        transport.onClose { closeCallCount.addAndFetch(1) }
 
         transport.start()
         // Give transport time to initialize
@@ -91,7 +94,7 @@ abstract class AbstractClientTransportLifecycleTest<T : AbstractClientTransport>
 
         // Verify onClose was called exactly once using eventually for cross-platform reliability
         eventually(2.seconds) {
-            closeCallCount shouldBe 1
+            closeCallCount.load() shouldBe 1
         }
     }
 

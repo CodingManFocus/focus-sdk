@@ -6,20 +6,20 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeSameInstanceAs
-import io.mockk.coEvery
-import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.types.McpException
 import io.modelcontextprotocol.kotlin.sdk.types.RPCError.ErrorCode
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -31,6 +31,7 @@ import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.util.stream.Stream
 import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -86,61 +87,82 @@ class StdioClientTransportErrorHandlingTest {
         eventually(2.seconds) {
             closeCalled.load() shouldBe true
         }
+
+        transport.close()
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     @Test
-    fun `should call onClose exactly once on error scenarios`() = runTest {
+    fun `should call onClose exactly once on error scenarios`(): Unit = runBlocking(Dispatchers.IO) {
         val stderrBuffer = createNonEmptyBuffer {
             "FATAL: critical error\n"
         }
 
-        val inputBuffer = Buffer()
+        val pipedOutputStream = PipedOutputStream()
+        val pipedInputStream = PipedInputStream(pipedOutputStream)
         val outputBuffer = Buffer()
 
-        var closeCallCount = 0
+        val closeCallCount = AtomicInt(0)
+        val closeCalled = CompletableDeferred<Unit>()
 
         transport = StdioClientTransport(
-            input = inputBuffer,
+            input = pipedInputStream.asSource().buffered(),
             output = outputBuffer,
             error = stderrBuffer,
             classifyStderr = { StdioClientTransport.StderrSeverity.FATAL },
         )
 
-        transport.onClose { closeCallCount++ }
-
-        transport.start()
-
-        // FATAL stderr should trigger close, wait for it to complete
-        eventually(2.seconds) {
-            closeCallCount shouldBe 1
+        transport.onClose {
+            closeCallCount.addAndFetch(1)
+            closeCalled.complete(Unit)
         }
 
-        // Explicit close after error already closed it (should be no-op)
-        transport.close()
+        try {
+            transport.start()
 
-        closeCallCount shouldBe 1
+            // FATAL stderr should trigger close, wait for it to complete
+            withTimeout(2.seconds) {
+                closeCalled.await()
+            }
+
+            pipedOutputStream.close()
+            pipedInputStream.close()
+
+            // Explicit close after error already closed it (should be no-op)
+            transport.close()
+
+            closeCallCount.load() shouldBe 1
+        } finally {
+            runCatching { pipedOutputStream.close() }
+            runCatching { pipedInputStream.close() }
+        }
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     @Test
-    fun `should handle empty input gracefully`() = runTest {
+    fun `should handle empty input gracefully`(): Unit = runBlocking(Dispatchers.IO) {
         val inputBuffer = Buffer()
         val outputBuffer = Buffer()
+        val closeCalled = CompletableDeferred<Unit>()
 
         transport = StdioClientTransport(
             input = inputBuffer,
             output = outputBuffer,
         )
 
-        var errorCalled = false
-        transport.onError { errorCalled = true }
+        val errorCalled = AtomicBoolean(false)
+        transport.onError { errorCalled.store(true) }
+        transport.onClose { closeCalled.complete(Unit) }
 
         transport.start()
 
         // Empty input should close cleanly without error
-        // Wait for EOF processing to complete, verify no error was called
-        eventually(2.seconds) {
-            errorCalled.shouldBeFalse()
+        withTimeout(2.seconds) {
+            closeCalled.await()
         }
+        errorCalled.load().shouldBeFalse()
+
+        transport.close()
     }
 
     companion object {
@@ -172,7 +194,7 @@ class StdioClientTransportErrorHandlingTest {
     @ParameterizedTest
     @MethodSource("exceptions")
     fun `Send should handle exceptions`(throwable: Exception, shouldWrap: Boolean, expectedCode: Int?) = runTest {
-        val sendChannel: Channel<JSONRPCMessage> = mockk(relaxed = true)
+        val sendChannel = failingSendChannel(throwable)
 
         // Create stdin pipe that stays open to prevent transport from closing
         val pipedOutputStream = PipedOutputStream()
@@ -185,27 +207,27 @@ class StdioClientTransportErrorHandlingTest {
             sendChannel = sendChannel,
         )
 
-        coEvery { sendChannel.send(any()) } throws throwable
+        try {
+            transport.start()
 
-        transport.start()
-
-        // Cancel the coroutine while it's suspended in send()
-        val exception = shouldThrow<Throwable> {
-            transport.send(JSONRPCRequest(id = "test-1", method = "test/method"))
-        }
-
-        if (shouldWrap) {
-            exception.shouldBeInstanceOf<McpException> {
-                it.cause shouldBeSameInstanceAs throwable
-                it.code shouldBe expectedCode
+            // Cancel the coroutine while it's suspended in send()
+            val exception = shouldThrow<Throwable> {
+                transport.send(JSONRPCRequest(id = "test-1", method = "test/method"))
             }
-        } else {
-            exception shouldBeSameInstanceAs throwable
-        }
 
-        // Cleanup
-        pipedOutputStream.close()
-        pipedInputStream.close()
+            if (shouldWrap) {
+                exception.shouldBeInstanceOf<McpException> {
+                    it.cause shouldBeSameInstanceAs throwable
+                    it.code shouldBe expectedCode
+                }
+            } else {
+                exception shouldBeSameInstanceAs throwable
+            }
+        } finally {
+            pipedOutputStream.close()
+            pipedInputStream.close()
+            transport.close()
+        }
     }
 
     fun createNonEmptyBuffer(block: () -> String): Buffer {
@@ -213,4 +235,9 @@ class StdioClientTransportErrorHandlingTest {
         buffer.writeString(block())
         return buffer
     }
+
+    private fun failingSendChannel(throwable: Throwable): Channel<JSONRPCMessage> =
+        object : Channel<JSONRPCMessage> by Channel<JSONRPCMessage>(Channel.BUFFERED) {
+            override suspend fun send(element: JSONRPCMessage): Unit = throw throwable
+        }
 }
