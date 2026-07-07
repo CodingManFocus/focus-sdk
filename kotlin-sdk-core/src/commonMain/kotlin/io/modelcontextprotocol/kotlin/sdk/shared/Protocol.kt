@@ -31,8 +31,7 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
@@ -482,43 +481,52 @@ public abstract class Protocol(@PublishedApi internal val options: ProtocolOptio
             }
         }
 
-        val cancel: suspend (Throwable) -> Unit = { reason: Throwable ->
+        val cleanupRequestState = {
             _responseHandlers.update { current -> current.remove(jsonRpcRequestId) }
             _progressHandlers.update { current -> current.remove(jsonRpcRequestId) }
+        }
 
-            val notification = CancelledNotification(
-                params = CancelledNotificationParams(
-                    requestId = jsonRpcRequestId,
-                    reason = reason.message ?: "Unknown",
-                ),
-            )
+        val cancel: suspend (Throwable) -> Unit = { reason: Throwable ->
+            cleanupRequestState()
 
-            val jsonRpcNotification = notification.toJSON()
+            if (request.method != Method.Defined.Initialize) {
+                val notification = CancelledNotification(
+                    params = CancelledNotificationParams(
+                        requestId = jsonRpcRequestId,
+                        reason = reason.message ?: "Unknown",
+                    ),
+                )
 
-            transport.send(jsonRpcNotification, options)
+                val jsonRpcNotification = notification.toJSON()
+
+                transport.send(jsonRpcNotification, options)
+            }
 
             result.completeExceptionally(reason)
         }
 
-        val timeout = options?.timeout ?: DEFAULT_REQUEST_TIMEOUT
+        val timeout = options?.timeout ?: this@Protocol.options?.timeout ?: DEFAULT_REQUEST_TIMEOUT
         try {
-            withTimeout(timeout) {
+            val response = withTimeoutOrNull(timeout) {
                 logger.trace { "Sending request message with id: $jsonRpcRequestId" }
                 this@Protocol.transport?.send(jsonRpcRequest, options)
+                result.await()
             }
-            return result.await()
-        } catch (cause: TimeoutCancellationException) {
-            logger.error { "Request timed out after ${timeout.inWholeMilliseconds}ms: ${request.method}" }
-            cancel(
-                McpException(
-                    code = RPCError.ErrorCode.REQUEST_TIMEOUT,
-                    message = "Request timed out",
-                    data = JsonObject(mutableMapOf("timeout" to JsonPrimitive(timeout.inWholeMilliseconds))),
-                ),
-            )
-            result.cancel(cause)
+            if (response != null) return response
+        } catch (cause: CancellationException) {
+            cleanupRequestState()
+            result.completeExceptionally(cause)
             throw cause
         }
+
+        logger.error { "Request timed out after ${timeout.inWholeMilliseconds}ms: ${request.method}" }
+        val timeoutError = McpException(
+            code = RPCError.ErrorCode.REQUEST_TIMEOUT,
+            message = "Request timed out",
+            data = JsonObject(mutableMapOf("timeout" to JsonPrimitive(timeout.inWholeMilliseconds))),
+        )
+        cancel(timeoutError)
+        throw timeoutError
     }
 
     /**

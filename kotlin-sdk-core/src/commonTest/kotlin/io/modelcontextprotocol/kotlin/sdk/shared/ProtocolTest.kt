@@ -11,14 +11,20 @@ import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCNotification
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.McpException
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.RPCError
 import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequest
 import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,7 +36,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ProtocolTest {
     private lateinit var protocol: TestProtocol
     private lateinit var transport: RecordingTransport
@@ -185,9 +194,146 @@ class ProtocolTest {
         transport.deliver(JSONRPCResponse(sent.id, EmptyResult()))
         inFlight.await()
     }
+
+    @Test
+    fun `should timeout while awaiting response and clean up request state`() = runTest {
+        protocol.connect(transport)
+
+        val inFlight = async {
+            shouldThrow<McpException> {
+                protocol.request<EmptyResult>(
+                    request = CustomRequest(
+                        method = Method.Custom("example/slow"),
+                        params = null,
+                    ),
+                    options = RequestOptions(
+                        onProgress = {},
+                        timeout = 100.milliseconds,
+                    ),
+                )
+            }
+        }
+
+        val sent = transport.awaitRequest()
+        protocol.responseHandlers.size shouldBe 1
+        protocol.progressHandlers.size shouldBe 1
+
+        advanceTimeBy(100.milliseconds)
+        runCurrent()
+
+        val cancellation = transport.awaitNotification()
+        cancellation.method shouldBe Method.Defined.NotificationsCancelled.value
+        val cancellationParams = cancellation.params?.jsonObject.shouldNotBeNull()
+        cancellationParams["requestId"] shouldBe McpJson.encodeToJsonElement(sent.id)
+        cancellationParams["reason"]?.jsonPrimitive?.content shouldBe "Request timed out"
+
+        val error = inFlight.await()
+        error.code shouldBe RPCError.ErrorCode.REQUEST_TIMEOUT
+        error.data?.jsonObject?.get("timeout")?.jsonPrimitive?.int shouldBe 100
+        protocol.responseHandlers.size shouldBe 0
+        protocol.progressHandlers.size shouldBe 0
+    }
+
+    @Test
+    fun `should use protocol default timeout when request options are absent`() = runTest {
+        protocol = TestProtocol(ProtocolOptions(timeout = 100.milliseconds))
+        protocol.connect(transport)
+
+        val inFlight = async {
+            shouldThrow<McpException> {
+                protocol.request<EmptyResult>(
+                    request = CustomRequest(
+                        method = Method.Custom("example/default-timeout"),
+                        params = null,
+                    ),
+                )
+            }
+        }
+
+        val sent = transport.awaitRequest()
+        protocol.responseHandlers.size shouldBe 1
+        protocol.progressHandlers.size shouldBe 0
+
+        advanceTimeBy(100.milliseconds)
+        runCurrent()
+
+        val cancellation = transport.awaitNotification()
+        cancellation.method shouldBe Method.Defined.NotificationsCancelled.value
+        val cancellationParams = cancellation.params?.jsonObject.shouldNotBeNull()
+        cancellationParams["requestId"] shouldBe McpJson.encodeToJsonElement(sent.id)
+
+        val error = inFlight.await()
+        error.code shouldBe RPCError.ErrorCode.REQUEST_TIMEOUT
+        error.data?.jsonObject?.get("timeout")?.jsonPrimitive?.int shouldBe 100
+        protocol.responseHandlers.size shouldBe 0
+        protocol.progressHandlers.size shouldBe 0
+    }
+
+    @Test
+    fun `should not send cancellation notification when initialize request times out`() = runTest {
+        protocol.connect(transport)
+
+        val inFlight = async {
+            shouldThrow<McpException> {
+                protocol.request<EmptyResult>(
+                    request = CustomRequest(
+                        method = Method.Defined.Initialize,
+                        params = null,
+                    ),
+                    options = RequestOptions(timeout = 100.milliseconds),
+                )
+            }
+        }
+
+        transport.awaitRequest()
+
+        advanceTimeBy(100.milliseconds)
+        runCurrent()
+
+        val error = inFlight.await()
+        error.code shouldBe RPCError.ErrorCode.REQUEST_TIMEOUT
+        transport.hasPendingMessage() shouldBe false
+        protocol.responseHandlers.size shouldBe 0
+        protocol.progressHandlers.size shouldBe 0
+    }
+
+    @Test
+    fun `should propagate caller timeout cancellation without converting to request timeout`() = runTest {
+        protocol.connect(transport)
+
+        val inFlight = async {
+            shouldThrow<CancellationException> {
+                withTimeout(100.milliseconds) {
+                    protocol.request<EmptyResult>(
+                        request = CustomRequest(
+                            method = Method.Custom("example/caller-timeout"),
+                            params = null,
+                        ),
+                        options = RequestOptions(
+                            onProgress = {},
+                            timeout = 10.seconds,
+                        ),
+                    )
+                }
+            }
+        }
+
+        transport.awaitRequest()
+        protocol.responseHandlers.size shouldBe 1
+        protocol.progressHandlers.size shouldBe 1
+
+        advanceTimeBy(100.milliseconds)
+        runCurrent()
+
+        val error = inFlight.await()
+        error::class shouldBe kotlinx.coroutines.TimeoutCancellationException::class
+        transport.hasPendingMessage() shouldBe false
+        protocol.responseHandlers.size shouldBe 0
+        protocol.progressHandlers.size shouldBe 0
+    }
 }
 
-private class TestProtocol : Protocol(null) {
+private class TestProtocol(options: ProtocolOptions? = null) : Protocol(options) {
     val errors = mutableListOf<Throwable>()
 
     override fun onError(error: Throwable) {
@@ -239,6 +385,14 @@ private class RecordingTransport : Transport {
         return message as? JSONRPCRequest
             ?: error("Expected JSONRPCRequest but received ${message::class.simpleName}")
     }
+
+    suspend fun awaitNotification(): JSONRPCNotification {
+        val message = sentMessages.receive()
+        return message as? JSONRPCNotification
+            ?: error("Expected JSONRPCNotification but received ${message::class.simpleName}")
+    }
+
+    fun hasPendingMessage(): Boolean = sentMessages.tryReceive().isSuccess
 
     suspend fun deliver(message: JSONRPCMessage) {
         val callback = onMessageCallback ?: error("onMessage callback not registered")
