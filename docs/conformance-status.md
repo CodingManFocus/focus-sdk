@@ -2,9 +2,9 @@
 
 Last verified: 2026-07-07
 
-Verified revision: `38f7ae6`
+Verified revision: `5eac946`
 
-Result artifact timestamp prefix: `2026-07-07T12-00Z`
+Result artifact timestamp prefix: `2026-07-07T13-31Z`
 
 Command:
 
@@ -40,6 +40,9 @@ Check-level status summary:
 
 The expected-failure baseline was empty at the time of this run:
 `conformance-test/conformance-baseline.yml`.
+
+This run refreshes full conformance evidence after release-readiness validation
+and OAuth documentation/static-analysis cleanup changes.
 
 ## Notes
 
