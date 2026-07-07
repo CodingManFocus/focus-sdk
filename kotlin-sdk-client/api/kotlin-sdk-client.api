@@ -439,6 +439,20 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthKt {
 	public static synthetic fun wwwAuthenticateParameter$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
 }
 
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackKt {
+	public static final fun startMcpOAuthLoopbackCallbackReceiver (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackReceiver;
+	public static synthetic fun startMcpOAuthLoopbackCallbackReceiver$default (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackReceiver;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackReceiver : java/lang/AutoCloseable {
+	public final fun awaitCallback (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun awaitCallback (Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun awaitCallback$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackReceiver;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static synthetic fun awaitCallback$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthLoopbackCallbackReceiver;Ljava/lang/String;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun close ()V
+	public final fun getRedirectUri ()Ljava/lang/String;
+}
+
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPkce {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
