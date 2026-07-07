@@ -37,6 +37,7 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
   combine discovery, challenge scope handling, PKCE validation, `resource`
   propagation, and token endpoint authentication method selection.
 - JVM localhost loopback callback receiver for browser authorization redirects.
+- JVM system-browser launcher for authorization URLs.
 - Authorization-code token exchange.
 - Refresh-token exchange.
 - Token store JSON snapshot/restore helpers for application-managed secure storage.
@@ -48,10 +49,11 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - `private_key_jwt` client credentials requests when the application supplies a
   signed JWT assertion.
 
-The SDK does not yet provide browser launching or an OS/service token vault. JVM
-clients can receive localhost browser callbacks and create RS256
-`private_key_jwt` assertions with the SDK; other platforms or algorithms can
-still provide assertions through `McpOAuthClientAssertionProvider`.
+The SDK does not yet provide an OS/service token vault. JVM clients can open
+authorization URLs in the system browser, receive localhost browser callbacks,
+and create RS256 `private_key_jwt` assertions with the SDK; other platforms or
+algorithms can still provide browser integration and assertions through host
+APIs and `McpOAuthClientAssertionProvider`.
 
 On the server side, the SDK provides Protected Resource Metadata, Bearer
 challenge response helpers, and a request guard for Ktor. Applications still
@@ -90,6 +92,7 @@ import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizat
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthTokenStoreSnapshotFromJsonString
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
+import io.modelcontextprotocol.kotlin.sdk.client.auth.openMcpOAuthAuthorizationUrlInBrowser
 import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
 import io.modelcontextprotocol.kotlin.sdk.client.auth.startMcpOAuthLoopbackCallbackReceiver
 import io.modelcontextprotocol.kotlin.sdk.client.auth.toMcpOAuthTokenStoreSnapshotJsonString
@@ -101,7 +104,6 @@ suspend fun connectAfterAuthorization(
     wwwAuthenticate: String?,
     clientId: String,
     clientSecret: String?,
-    openAuthorizationUrl: suspend (authorizationUrl: String) -> Unit,
     saveTokens: (String) -> Unit,
 ): Client {
     val discoveryClient = HttpClient()
@@ -125,7 +127,9 @@ suspend fun connectAfterAuthorization(
             ),
         )
 
-        openAuthorizationUrl(preparedFlow.authorizationUrl)
+        if (!openMcpOAuthAuthorizationUrlInBrowser(preparedFlow.authorizationUrl)) {
+            error("System browser is unavailable; show the authorization URL to the user")
+        }
         val callback = callbackReceiver.awaitCallback(preparedFlow)
 
         exchangeMcpOAuthAuthorizationCode(
@@ -155,10 +159,11 @@ fun restoreTokenStore(loadTokens: () -> String?): McpOAuthTokenStore? {
 
 Generate `state` with cryptographically secure random bytes. The JVM loopback
 callback receiver rejects OAuth error callbacks, missing codes, and state
-mismatches before token exchange. The sample still leaves browser launching to
-the application because desktop hosts use different browser integration APIs.
-If your authorization server requires an exact pre-registered localhost
-redirect URI, start the receiver with the registered `port` and `path`.
+mismatches before token exchange. The JVM browser helper returns `false` when
+the host cannot open a system browser, so desktop applications should provide a
+copy-to-clipboard or host-specific fallback. If your authorization server
+requires an exact pre-registered localhost redirect URI, start the receiver with
+the registered `port` and `path`.
 
 Persist token snapshots only in protected storage such as an OS keychain, a
 credential manager, or a service secret store. The JSON helper defines the SDK's

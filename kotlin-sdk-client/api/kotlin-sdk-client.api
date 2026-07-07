@@ -573,6 +573,10 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthStream
 	public static synthetic fun mcpOAuthStreamableHttpTransport$default (Lio/ktor/client/HttpClient;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore;Lio/modelcontextprotocol/kotlin/sdk/client/ReconnectionOptions;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/StreamableHttpClientTransport;
 }
 
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserKt {
+	public static final fun openMcpOAuthAuthorizationUrlInBrowser (Ljava/lang/String;)Z
+}
+
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod : java/lang/Enum {
 	public static final field ClientSecretBasic Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;
 	public static final field ClientSecretPost Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenEndpointAuthMethod;
