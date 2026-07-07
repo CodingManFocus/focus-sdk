@@ -43,6 +43,9 @@ true:
   resolved within seven days.
 - Issue labels or GitHub issue types support the standardized Type, Status, and
   Priority reporting expected by the tiering system.
+- The MCP SDK Working Group approves the Tier advancement request after the
+  self-assessment, evidence submission, automated conformance validation, and
+  GitHub maintenance-stat review.
 
 ## Tier 1 SDK Capability Model
 
@@ -211,3 +214,7 @@ Immediate priority after the 2026-07-07 Tier 1 audit:
 - Prepare Tier advancement evidence for the MCP SDK Working Group:
   conformance output, feature matrix, docs links, dependency policy, release
   policy, and maintenance commitments.
+- Open a Tier advancement issue in the official
+  `modelcontextprotocol/modelcontextprotocol` repository with the supporting
+  evidence, then track automated conformance validation, GitHub maintenance
+  statistics, and SDK Working Group maintainer approval as release blockers.

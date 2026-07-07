@@ -973,6 +973,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [Conformance status](./docs/conformance-status.md)
 - [Tier 1 SDK capability matrix](./docs/tier1-sdk-capability-matrix.md)
 - [Compatibility and release policy](./docs/compatibility-and-release-policy.md)
+- [Release notes](./docs/release-notes.md)
 - [Dependency update policy](./docs/dependency-update-policy.md)
 - [Maintenance policy](./docs/maintenance-policy.md)
 - [Maintenance evidence](./docs/maintenance-evidence.md)

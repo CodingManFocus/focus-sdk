@@ -100,6 +100,8 @@ Tier 1 release candidates should also include links to the Tier 1 evidence:
 conformance output, feature documentation, dependency policy, roadmap, and this
 release policy.
 
+The current release-note draft is maintained in `docs/release-notes.md`.
+
 ## Release Validation Gates
 
 For documentation-only changes, run at least `git diff --check`.

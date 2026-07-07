@@ -124,6 +124,7 @@ $compatibilityPolicy = Join-Path $root "docs/compatibility-and-release-policy.md
 $dependencyPolicy = Join-Path $root "docs/dependency-update-policy.md"
 $tierRoadmap = Join-Path $root "docs/tier1-readiness.md"
 $capabilityMatrix = Join-Path $root "docs/tier1-sdk-capability-matrix.md"
+$releaseNotes = Join-Path $root "docs/release-notes.md"
 
 $gitHead = (& git rev-parse --short HEAD).Trim()
 $gitStatus = (& git status --short)
@@ -186,6 +187,7 @@ Add-CheckResult -Checks $checks -Name "Dependency policy present" -Pass (Test-Pa
 Add-CheckResult -Checks $checks -Name "Tier roadmap present" -Pass (Test-Path $tierRoadmap) -Evidence $tierRoadmap
 Add-CheckResult -Checks $checks -Name "Capability matrix present" -Pass (Test-Path $capabilityMatrix) -Evidence $capabilityMatrix
 Add-CheckResult -Checks $checks -Name "Maintenance evidence present" -Pass (Test-Path $maintenanceEvidence) -Evidence $maintenanceEvidence
+Add-CheckResult -Checks $checks -Name "Release notes draft present" -Pass (Test-Path $releaseNotes) -Evidence $releaseNotes
 
 $validationResults = @()
 if ($RunChecks) {
