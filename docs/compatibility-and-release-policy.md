@@ -116,6 +116,10 @@ Use `-MaintenanceSince` for the operational evidence window included in the
 Tier request. The release readiness report embeds the maintenance collector
 output so issue-label, triage, and P0 evidence are captured with the release
 gate results.
+The readiness report also records the collector's `Tier Evidence Status`; a
+collector that runs successfully can still be `BLOCKED` if the evidence window
+has missing labels, missing or late triage, late or open P0 issues, or no issue
+records to measure.
 
 When `-RunChecks` is used, each default Gradle validation gate is also recorded
 as a PASS/BLOCKED row in the Tier 1 release checks table.

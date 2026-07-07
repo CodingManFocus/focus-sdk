@@ -63,6 +63,20 @@ function Get-RegexValue {
     return $match.Groups[1].Value
 }
 
+function Get-MaintenanceEvidenceStatus {
+    param([string]$Text)
+
+    $match = [regex]::Match(
+        $Text,
+        '## Tier Evidence Status\s+Status:\s*`([^`]+)`',
+        [System.Text.RegularExpressions.RegexOptions]::Singleline
+    )
+    if (-not $match.Success) {
+        return "BLOCKED"
+    }
+    return $match.Groups[1].Value
+}
+
 function Add-CheckResult {
     param(
         [System.Collections.Generic.List[object]]$Checks,
@@ -214,6 +228,8 @@ if ($RunMaintenanceCheck) {
     $maintenanceCommand = "powershell $($maintenanceArguments -join ' ')"
     $maintenanceResult = Invoke-Capture -FilePath "powershell" -Arguments $maintenanceArguments
     Add-CheckResult -Checks $checks -Name "Maintenance collector run" -Pass ($maintenanceResult.ExitCode -eq 0) -Evidence "repo=$MaintenanceRepo; since=$MaintenanceSince; exit=$($maintenanceResult.ExitCode)"
+    $maintenanceEvidenceStatus = if ($maintenanceResult.ExitCode -eq 0) { Get-MaintenanceEvidenceStatus -Text $maintenanceResult.Output } else { "BLOCKED" }
+    Add-CheckStatus -Checks $checks -Name "Maintenance SLA evidence" -Status $maintenanceEvidenceStatus -Evidence "repo=$MaintenanceRepo; since=$MaintenanceSince"
 }
 
 $validationResults = @()

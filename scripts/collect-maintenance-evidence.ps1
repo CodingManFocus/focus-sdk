@@ -198,6 +198,28 @@ $triageMissing = @($triageRows | Where-Object { $_.TriageStatus -eq "No triage l
 $p0Failures = @($p0Rows | Where-Object { $_.P0Status -eq "FAIL" })
 $p0Open = @($p0Rows | Where-Object { $_.P0Status -eq "OPEN" })
 
+$evidenceStatus = "PASS"
+$evidenceReasons = New-Object System.Collections.Generic.List[string]
+if ($missingLabels.Count -gt 0) {
+    $evidenceStatus = "BLOCKED"
+    $evidenceReasons.Add("Required triage labels are missing.")
+}
+if ($issueRows.Count -eq 0) {
+    $evidenceStatus = "BLOCKED"
+    $evidenceReasons.Add("No issues matched this evidence window, so operational SLA timing cannot be measured.")
+}
+if ($triageFailures.Count -gt 0 -or $triageMissing.Count -gt 0) {
+    $evidenceStatus = "BLOCKED"
+    $evidenceReasons.Add("One or more measured issues missed the triage SLA or lack a triage label.")
+}
+if ($p0Failures.Count -gt 0 -or $p0Open.Count -gt 0) {
+    $evidenceStatus = "BLOCKED"
+    $evidenceReasons.Add("One or more measured P0 issues missed the resolution SLA or remain open.")
+}
+if ($evidenceReasons.Count -eq 0) {
+    $evidenceReasons.Add("Measured issue records satisfy the configured triage and P0 SLA checks.")
+}
+
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add("# Maintenance Evidence Report")
@@ -216,6 +238,14 @@ if ($null -ne $sinceDate) {
     $lines.Add("Window inclusion: issues created at or after the start, plus issues first labeled ``P0`` at or after the start.")
 } else {
     $lines.Add("Evidence window start: all issues returned by ``gh issue list`` within the limit")
+}
+$lines.Add("")
+$lines.Add("## Tier Evidence Status")
+$lines.Add("")
+$lines.Add("Status: ``$evidenceStatus``")
+$lines.Add("")
+foreach ($reason in $evidenceReasons) {
+    $lines.Add("- $reason")
 }
 $lines.Add("")
 $lines.Add("## Required Labels")

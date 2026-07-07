@@ -76,11 +76,14 @@ Before requesting an official Tier change:
    triage and P0 resolution use different official start events.
 4. Re-run the commands in `Current Snapshot` if the collector reports missing
    labels or disabled issue tracking.
-5. For every valid issue, verify that the first Type, Status, or Priority label
+5. Check the collector's `Tier Evidence Status` section. `PASS` means the
+   measured issue records satisfy the configured label, triage, and P0 checks;
+   `BLOCKED` means the report is not sufficient Tier advancement evidence.
+6. For every valid issue, verify that the first Type, Status, or Priority label
    was applied within two business days of `createdAt`.
-6. For every issue labeled `P0`, verify that the issue was closed within seven
+7. For every issue labeled `P0`, verify that the issue was closed within seven
    days of the `P0` label event.
-7. If there are no issues or no P0 issues, record that the period had no
+8. If there are no issues or no P0 issues, record that the period had no
    measurable incident for that metric rather than treating it as historical
    proof of SLA performance.
 
