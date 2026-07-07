@@ -67,7 +67,7 @@ Status legend:
 | Resources | Ready, keep fresh | Server resources/templates/subscription notifications; client list/read/subscribe/unsubscribe; README examples; `docs/resources.md` covers resources, templates, subscriptions, catalog notifications, update notifications, URI validation, and security guidance. | Keep examples current after resource type, notification, or template matching changes. |
 | Prompts | Ready, keep fresh | Server prompt registration; client list/get prompt; README examples; `docs/prompts-completion.md` covers prompt arguments, catalog notifications, client prompt calls, validation, and security guidance. | Keep examples current after prompt type or registry changes. |
 | Completion | Ready, keep fresh | Server completion capability, high-level `setCompletionHandler`, client `complete`, README example, and `docs/prompts-completion.md` coverage for prompt and resource-template completions. | Keep examples current after completion type or validation changes. |
-| Logging | Ready | Server logging notifications and client `setLoggingLevel`; README example. | Add level/filter guidance. |
+| Logging | Ready, keep fresh | Server logging notifications and client `setLoggingLevel`; README example; `docs/logging.md` covers capability declaration, client minimum levels, server notifications, client handlers, level filtering, and security guidance. | Keep examples current after logging type or filter changes. |
 | Pagination | Ready | Cursor support in list operations; README pagination example. | Add conformance-backed examples for every paginated list. |
 | Roots | Ready, keep fresh | Client root registry and roots/list_changed notification; server `listRoots`; README example; `docs/roots.md` covers root grants, server requests, list-change notifications, `file://` validation, and security guidance. | Keep examples current after root type or capability changes. |
 | Sampling | Ready, keep fresh | Server `createMessage`; client sampling handler and sampling-tools validation; README example; `docs/sampling.md` covers client handlers, server requests, tool-enabled sampling, content blocks, and safety guidance. | Keep examples current after sampling type or validation changes. |
@@ -82,7 +82,7 @@ Status legend:
 | Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
-| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Add dedicated guides for logging and pagination. |
+| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, logging, prompts/completion, resources/templates/subscriptions, roots, sampling, Streamable HTTP, and tools. | Add a dedicated guide for pagination. |
 | Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
@@ -91,7 +91,7 @@ Status legend:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
 2. Remaining feature guides:
-   add focused guides for logging and pagination.
+   add a focused guide for pagination.
 3. Maintenance evidence:
    collect operational evidence that issue triage and P0 resolution metrics
    are being met against the published policy.
