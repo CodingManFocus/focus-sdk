@@ -48,3 +48,32 @@ The expected-failure baseline was empty at the time of this run:
 - This status reflects the scenarios executed by
   `conformance-test/run-conformance.sh` for runner `0.1.16`; it is not a
   substitute for future official SDK Working Group tier review.
+
+## Latest Targeted Check
+
+Date: 2026-07-07
+
+Purpose: verify OAuth authorization URL validation remains compatible with the
+client authorization conformance harness after allowing loopback authorization
+server endpoints for local development and tests.
+
+Command:
+
+```bash
+./conformance-test/run-conformance.sh client-auth --verbose
+```
+
+Executed on Windows through Git Bash:
+
+```powershell
+& 'C:\Program Files\Git\usr\bin\bash.exe' -lc 'cd /e/focus-sdk && ./conformance-test/run-conformance.sh client-auth --verbose'
+```
+
+Result: exit code `0`.
+
+| Suite | Result |
+| --- | --- |
+| Auth suite | 204 passed, 0 failed, 0 warnings |
+| `auth/client-credentials-jwt` | 7 passed, 0 failed, 0 warnings |
+| `auth/client-credentials-basic` | 7 passed, 0 failed, 0 warnings |
+| `auth/cross-app-access-complete-flow` | 8 passed, 0 failed, 0 warnings |

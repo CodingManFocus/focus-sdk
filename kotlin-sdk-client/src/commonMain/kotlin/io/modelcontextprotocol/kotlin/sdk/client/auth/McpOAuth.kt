@@ -627,7 +627,7 @@ public fun requireMcpPkceS256Support(metadata: OAuthAuthorizationServerMetadata)
  * Builds an MCP OAuth authorization URL for an authorization-code request.
  */
 public fun buildMcpOAuthAuthorizationUrl(request: McpOAuthAuthorizationRequest): String {
-    requireMcpOAuthHttpsEndpoint(request.authorizationEndpoint, "OAuth authorization endpoint")
+    requireMcpOAuthAuthorizationEndpoint(request.authorizationEndpoint)
     requireMcpOAuthRedirectUri(request.redirectUri)
 
     val builder = URLBuilder(request.authorizationEndpoint)
@@ -1351,13 +1351,15 @@ private fun requireClientIdMetadataDocumentUrl(clientId: String) {
     }
 }
 
-private fun requireMcpOAuthHttpsEndpoint(value: String, description: String) {
+private fun requireMcpOAuthAuthorizationEndpoint(value: String) {
     val url = Url(value)
-    require(url.protocol.name == "https" && url.host.isNotBlank()) {
-        "$description must use https and include a host"
+    val isHttps = url.protocol.name == "https"
+    val isLoopbackHttp = url.protocol.name == "http" && url.host.isMcpOAuthLoopbackHost()
+    require((isHttps || isLoopbackHttp) && url.host.isNotBlank()) {
+        "OAuth authorization endpoint must use https, or http for localhost, 127.0.0.1, or ::1"
     }
     require(!authorityHasUserInfo(value)) {
-        "$description must not include user info"
+        "OAuth authorization endpoint must not include user info"
     }
 }
 

@@ -118,6 +118,24 @@ class McpOAuthTest {
     }
 
     @Test
+    fun `should build authorization URL for loopback authorization endpoint`() {
+        val url = buildMcpOAuthAuthorizationUrl(
+            McpOAuthAuthorizationRequest(
+                authorizationEndpoint = "http://localhost:8080/authorize",
+                clientId = "client",
+                redirectUri = "http://127.0.0.1/callback",
+                codeChallenge = "challenge",
+                resource = "http://localhost:3000/mcp",
+            ),
+        )
+
+        val parsed = Url(url)
+        assertEquals("http", parsed.protocol.name)
+        assertEquals("localhost", parsed.host)
+        assertEquals("http://localhost:3000/mcp", parsed.parameters["resource"])
+    }
+
+    @Test
     fun `should reject unsafe authorization request URLs`() {
         assertFailsWith<IllegalArgumentException> {
             buildMcpOAuthAuthorizationUrl(

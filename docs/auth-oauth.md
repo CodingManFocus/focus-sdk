@@ -166,8 +166,11 @@ requires an exact pre-registered localhost redirect URI, start the receiver with
 the registered `port` and `path`.
 
 The authorization URL builder validates the MCP transport security rules before
-opening the browser: authorization endpoints must use HTTPS, and redirect URIs
-must use HTTPS or loopback HTTP (`localhost`, `127.0.0.1`, or `::1`).
+opening the browser: production authorization endpoints must use HTTPS, while
+loopback HTTP (`localhost`, `127.0.0.1`, or `::1`) is accepted for local
+development and conformance harnesses. Redirect URIs must use HTTPS or loopback
+HTTP. The JVM system-browser helper remains HTTPS-only for user-facing browser
+launches.
 
 Persist token snapshots only in protected storage such as an OS keychain, a
 credential manager, or a service secret store. The JSON helper defines the SDK's
@@ -694,7 +697,8 @@ and retries the request once.
 ## Security Checklist
 
 - Use HTTPS for authorization server endpoints in production.
-- Only allow loopback `http://` redirect URIs for local development flows.
+- Only allow loopback `http://` authorization endpoints and redirect URIs for
+  local development or conformance flows.
 - Store refresh tokens and client secrets in OS or service secret storage, not
   source files.
 - Validate OAuth `state` values exactly and treat them as single use.
