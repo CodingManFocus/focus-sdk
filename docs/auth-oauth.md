@@ -85,19 +85,14 @@ on behalf of a user.
 ```kotlin
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.sse.SSE
-import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeFlowRequest
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
+import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthSystemBrowserAuthorizationCodeFlowRequest
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
-import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
+import io.modelcontextprotocol.kotlin.sdk.client.auth.authorizeMcpOAuthWithSystemBrowser
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthTokenStoreSnapshotFromJsonString
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStreamableHttp
-import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
-import io.modelcontextprotocol.kotlin.sdk.client.auth.openMcpOAuthAuthorizationUrlInBrowser
-import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
-import io.modelcontextprotocol.kotlin.sdk.client.auth.startMcpOAuthLoopbackCallbackReceiver
 import io.modelcontextprotocol.kotlin.sdk.client.auth.toMcpOAuthTokenStoreSnapshotJsonString
 import io.modelcontextprotocol.kotlin.sdk.client.Client
-import java.security.SecureRandom
 
 suspend fun connectAfterAuthorization(
     serverUrl: String,
@@ -107,41 +102,16 @@ suspend fun connectAfterAuthorization(
     saveTokens: (String) -> Unit,
 ): Client {
     val discoveryClient = HttpClient()
-    val tokenClient = HttpClient()
+    val authorization = authorizeMcpOAuthWithSystemBrowser(
+        httpClient = discoveryClient,
+        request = McpOAuthSystemBrowserAuthorizationCodeFlowRequest(
+            serverUrl = serverUrl,
+            clientCredentials = McpOAuthClientCredentials(clientId, clientSecret),
+            wwwAuthenticate = wwwAuthenticate,
+        ),
+    )
 
-    val randomBytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
-    val pkce = mcpPkceS256(randomBytes)
-    val state = "replace-with-cryptographically-random-state"
-    val callbackReceiver = startMcpOAuthLoopbackCallbackReceiver()
-
-    val tokens = try {
-        val preparedFlow = prepareMcpOAuthAuthorizationCodeFlow(
-            httpClient = discoveryClient,
-            request = McpOAuthAuthorizationCodeFlowRequest(
-                serverUrl = serverUrl,
-                clientCredentials = McpOAuthClientCredentials(clientId, clientSecret),
-                redirectUri = callbackReceiver.redirectUri,
-                pkce = pkce,
-                state = state,
-                wwwAuthenticate = wwwAuthenticate,
-            ),
-        )
-
-        if (!openMcpOAuthAuthorizationUrlInBrowser(preparedFlow.authorizationUrl)) {
-            error("System browser is unavailable; show the authorization URL to the user")
-        }
-        val callback = callbackReceiver.awaitCallback(preparedFlow)
-
-        exchangeMcpOAuthAuthorizationCode(
-            httpClient = tokenClient,
-            preparedFlow = preparedFlow,
-            code = callback.code,
-        )
-    } finally {
-        callbackReceiver.close()
-    }
-
-    val tokenStore = McpOAuthTokenStore(tokens) { snapshot ->
+    val tokenStore = McpOAuthTokenStore(authorization.tokens, authorization.receivedAtEpochSeconds) { snapshot ->
         saveTokens(snapshot.toMcpOAuthTokenStoreSnapshotJsonString())
     }
     val mcpHttpClient = HttpClient {
@@ -157,13 +127,14 @@ fun restoreTokenStore(loadTokens: () -> String?): McpOAuthTokenStore? {
 }
 ```
 
-Generate `state` with cryptographically secure random bytes. The JVM loopback
-callback receiver rejects OAuth error callbacks, missing codes, and state
-mismatches before token exchange. The JVM browser helper returns `false` when
-the host cannot open a system browser, so desktop applications should provide a
-copy-to-clipboard or host-specific fallback. If your authorization server
-requires an exact pre-registered localhost redirect URI, start the receiver with
-the registered `port` and `path`.
+The high-level JVM browser helper generates PKCE and `state` with
+cryptographically secure random bytes, starts a temporary loopback callback
+receiver, rejects OAuth error callbacks, missing codes, and state mismatches,
+then exchanges the code with the MCP `resource` parameter. If the host cannot
+open a system browser, it throws `McpOAuthException`; desktop applications
+should then provide a copy-to-clipboard or host-specific fallback. If your
+authorization server requires an exact pre-registered localhost redirect URI,
+set the request's `callbackPort` and `callbackPath`.
 
 The authorization URL builder validates the MCP transport security rules before
 opening the browser: production authorization endpoints must use HTTPS, while

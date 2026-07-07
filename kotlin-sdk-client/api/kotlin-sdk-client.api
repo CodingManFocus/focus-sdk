@@ -573,6 +573,58 @@ public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthStream
 	public static synthetic fun mcpOAuthStreamableHttpTransport$default (Lio/ktor/client/HttpClient;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore;Lio/modelcontextprotocol/kotlin/sdk/client/ReconnectionOptions;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/StreamableHttpClientTransport;
 }
 
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowRequest {
+	public fun <init> (Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;Ljava/lang/String;ILjava/lang/String;J)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;Ljava/lang/String;ILjava/lang/String;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()J
+	public final fun component2 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()I
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;Ljava/lang/String;ILjava/lang/String;J)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowRequest;
+	public static synthetic fun copy$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowRequest;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;Ljava/lang/String;ILjava/lang/String;JILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCallbackHost ()Ljava/lang/String;
+	public final fun getCallbackPath ()Ljava/lang/String;
+	public final fun getCallbackPort ()I
+	public final fun getClientAssertionProvider ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientAssertionProvider;
+	public final fun getClientCredentials ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthClientCredentials;
+	public final fun getResourceMetadataUrl ()Ljava/lang/String;
+	public final fun getScope ()Ljava/lang/String;
+	public final fun getServerUrl ()Ljava/lang/String;
+	public final fun getTimeoutMillis ()J
+	public final fun getWwwAuthenticate ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowResult {
+	public fun <init> (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCallback;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;J)V
+	public final fun component1 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;
+	public final fun component2 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCallback;
+	public final fun component3 ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;
+	public final fun component4 ()J
+	public final fun copy (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCallback;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;J)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowResult;
+	public static synthetic fun copy$default (Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowResult;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCallback;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;JILjava/lang/Object;)Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCallback ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthAuthorizationCallback;
+	public final fun getPreparedFlow ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthPreparedAuthorizationCodeFlow;
+	public final fun getReceivedAtEpochSeconds ()J
+	public final fun getTokens ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenResponse;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun tokenStore ()Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthTokenStore;
+}
+
+public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserFlowKt {
+	public static final fun authorizeMcpOAuthWithSystemBrowser (Lio/ktor/client/HttpClient;Lio/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserAuthorizationCodeFlowRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class io/modelcontextprotocol/kotlin/sdk/client/auth/McpOAuthSystemBrowserKt {
 	public static final fun openMcpOAuthAuthorizationUrlInBrowser (Ljava/lang/String;)Z
 }

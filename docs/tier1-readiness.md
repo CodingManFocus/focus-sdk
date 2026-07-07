@@ -113,7 +113,8 @@ Known gaps and risks:
   exchange/provider support, `private_key_jwt` assertion request support, JVM
   RS256 assertion signing, Client ID Metadata Document JSON generation, dynamic
   client registration support, JVM loopback callback receiver support, JVM
-  system-browser authorization URL launching,
+  system-browser authorization URL launching, a high-level JVM system-browser
+  authorization-code flow helper,
   expiry-aware token JSON snapshot/restore helpers, token-store-backed
   Streamable HTTP bootstrap helpers, and dynamic Streamable HTTP bearer-header
   coverage. Server auth now has Protected Resource Metadata, Bearer challenge

@@ -53,9 +53,9 @@ The expected-failure baseline was empty at the time of this run:
 
 Date: 2026-07-07
 
-Purpose: verify OAuth authorization URL validation remains compatible with the
-client authorization conformance harness after allowing loopback authorization
-server endpoints for local development and tests.
+Purpose: verify client authorization conformance remains clean after OAuth
+helper changes, including loopback authorization endpoint compatibility and the
+high-level JVM system-browser authorization-code flow helper.
 
 Command:
 
