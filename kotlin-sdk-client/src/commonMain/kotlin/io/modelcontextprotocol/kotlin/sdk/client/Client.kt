@@ -264,7 +264,10 @@ public open class Client(private val clientInfo: Implementation, options: Client
                 val resCaps = serverCapabilities?.resources
                     ?: error("Server does not support resources (required for $method)")
 
-                if (method == Method.Defined.ResourcesSubscribe) {
+                if (
+                    method == Method.Defined.ResourcesSubscribe ||
+                    method == Method.Defined.ResourcesUnsubscribe
+                ) {
                     check(resCaps.subscribe == true) {
                         "Server does not support resource subscriptions (required for $method)"
                     }

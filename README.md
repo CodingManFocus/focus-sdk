@@ -974,6 +974,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 - [Auth and OAuth guide](./docs/auth-oauth.md)
 - [Elicitation guide](./docs/elicitation.md)
+- [Resources guide](./docs/resources.md)
 - [Sampling guide](./docs/sampling.md)
 - [Streamable HTTP guide](./docs/streamable-http.md)
 - [Tools guide](./docs/tools.md)

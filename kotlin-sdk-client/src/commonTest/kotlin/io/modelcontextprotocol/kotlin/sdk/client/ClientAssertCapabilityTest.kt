@@ -103,6 +103,25 @@ class ClientAssertCapabilityTest {
         ex.message.orEmpty() shouldContain "Server does not support completions"
     }
 
+    @Test
+    fun `ResourcesUnsubscribe throws when server does not support resource subscriptions`() = runTest {
+        val client = newTestClient(
+            serverCapabilities = ServerCapabilities(resources = ServerCapabilities.Resources()),
+        )
+        val ex = assertFailsWith<IllegalStateException> {
+            client.exposedAssertCapabilityForMethod(Method.Defined.ResourcesUnsubscribe)
+        }
+        ex.message.orEmpty() shouldContain "Server does not support resource subscriptions"
+    }
+
+    @Test
+    fun `ResourcesUnsubscribe does not throw when server supports resource subscriptions`() = runTest {
+        val client = newTestClient(
+            serverCapabilities = ServerCapabilities(resources = ServerCapabilities.Resources(subscribe = true)),
+        )
+        client.exposedAssertCapabilityForMethod(Method.Defined.ResourcesUnsubscribe)
+    }
+
     private suspend fun newTestClient(
         serverCapabilities: ServerCapabilities = ServerCapabilities(),
         clientCapabilities: ClientCapabilities = ClientCapabilities(),
