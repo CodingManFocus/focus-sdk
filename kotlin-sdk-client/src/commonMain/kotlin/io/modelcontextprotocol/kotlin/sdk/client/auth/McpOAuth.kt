@@ -401,6 +401,56 @@ public data class McpOAuthTokenStoreSnapshot(
 }
 
 /**
+ * Encodes this token snapshot as a JSON object suitable for application-managed secure storage.
+ *
+ * Secret storage remains application-owned. Store the returned JSON in an OS keychain, service
+ * secret manager, or equivalent protected storage rather than in a world-readable config file.
+ */
+public fun McpOAuthTokenStoreSnapshot.toMcpOAuthTokenStoreSnapshotJsonObject(): JsonObject = buildJsonObject {
+    put("access_token", accessToken)
+    refreshToken?.let { put("refresh_token", it) }
+    tokenType?.let { put("token_type", it) }
+    expiresIn?.let { put("expires_in", it) }
+    expiresAtEpochSeconds?.let { put("expires_at_epoch_seconds", it) }
+    scope?.let { put("scope", it) }
+    if (raw.isNotEmpty()) {
+        put("raw", raw)
+    }
+}
+
+/**
+ * Encodes this token snapshot as a JSON string suitable for application-managed secure storage.
+ */
+public fun McpOAuthTokenStoreSnapshot.toMcpOAuthTokenStoreSnapshotJsonString(): String =
+    McpJson.encodeToString(toMcpOAuthTokenStoreSnapshotJsonObject())
+
+/**
+ * Decodes a token snapshot from a JSON object previously produced by
+ * [McpOAuthTokenStoreSnapshot.toMcpOAuthTokenStoreSnapshotJsonObject].
+ */
+public fun mcpOAuthTokenStoreSnapshotFromJsonObject(jsonObject: JsonObject): McpOAuthTokenStoreSnapshot {
+    val accessToken = jsonObject.stringOrNull("access_token")?.takeIf { it.isNotBlank() }
+        ?: throw McpOAuthException("OAuth token snapshot does not include access_token")
+
+    return McpOAuthTokenStoreSnapshot(
+        accessToken = accessToken,
+        refreshToken = jsonObject.stringOrNull("refresh_token"),
+        tokenType = jsonObject.stringOrNull("token_type"),
+        expiresIn = jsonObject["expires_in"]?.jsonPrimitive?.intOrNull,
+        expiresAtEpochSeconds = jsonObject["expires_at_epoch_seconds"]?.jsonPrimitive?.longOrNull,
+        scope = jsonObject.stringOrNull("scope"),
+        raw = jsonObject["raw"]?.jsonObject ?: JsonObject(emptyMap()),
+    )
+}
+
+/**
+ * Decodes a token snapshot from a JSON string previously produced by
+ * [McpOAuthTokenStoreSnapshot.toMcpOAuthTokenStoreSnapshotJsonString].
+ */
+public fun mcpOAuthTokenStoreSnapshotFromJsonString(jsonString: String): McpOAuthTokenStoreSnapshot =
+    mcpOAuthTokenStoreSnapshotFromJsonObject(McpJson.parseToJsonElement(jsonString).jsonObject)
+
+/**
  * Mutable OAuth token state for long-lived MCP HTTP transports.
  *
  * The refresh token is retained when an update response omits a replacement

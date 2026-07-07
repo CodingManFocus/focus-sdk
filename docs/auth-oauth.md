@@ -38,7 +38,7 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
   propagation, and token endpoint authentication method selection.
 - Authorization-code token exchange.
 - Refresh-token exchange.
-- Token store snapshot/restore helpers for application-managed secure storage.
+- Token store JSON snapshot/restore helpers for application-managed secure storage.
 - Bearer-token request decoration.
 - Streamable HTTP transport/client bootstrap helpers backed by the token store.
 - One automatic refresh/retry on `401 Unauthorized` for Ktor HTTP clients.
@@ -47,7 +47,7 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - `private_key_jwt` client credentials requests when the application supplies a
   signed JWT assertion.
 
-The SDK does not yet provide a complete browser callback server or persistent
+The SDK does not yet provide a complete browser callback server or OS/service
 token vault. JVM clients can create RS256 `private_key_jwt` assertions with the
 SDK; other platforms or algorithms can still provide assertions through
 `McpOAuthClientAssertionProvider`.
@@ -86,10 +86,12 @@ import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeF
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
 import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthTokenStoreSnapshotFromJsonString
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
 import io.modelcontextprotocol.kotlin.sdk.client.auth.parseMcpOAuthAuthorizationCallback
 import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
+import io.modelcontextprotocol.kotlin.sdk.client.auth.toMcpOAuthTokenStoreSnapshotJsonString
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import java.security.SecureRandom
 
@@ -100,6 +102,7 @@ suspend fun connectAfterAuthorization(
     clientSecret: String?,
     redirectUri: String,
     receiveAuthorizationRedirectUrl: suspend (authorizationUrl: String, state: String) -> String,
+    saveTokens: (String) -> Unit,
 ): Client {
     val discoveryClient = HttpClient()
     val tokenClient = HttpClient()
@@ -129,11 +132,19 @@ suspend fun connectAfterAuthorization(
         code = callback.code,
     )
 
-    val tokenStore = McpOAuthTokenStore(tokens)
+    val tokenStore = McpOAuthTokenStore(tokens) { snapshot ->
+        saveTokens(snapshot.toMcpOAuthTokenStoreSnapshotJsonString())
+    }
     val mcpHttpClient = HttpClient {
         install(SSE)
     }
     return mcpHttpClient.mcpOAuthStreamableHttp(serverUrl, tokenStore)
+}
+
+fun restoreTokenStore(loadTokens: () -> String?): McpOAuthTokenStore? {
+    val saved = loadTokens() ?: return null
+    val snapshot = mcpOAuthTokenStoreSnapshotFromJsonString(saved)
+    return McpOAuthTokenStore(snapshot)
 }
 ```
 
@@ -142,6 +153,11 @@ parser rejects OAuth error callbacks, missing codes, and state mismatches before
 token exchange. The sample leaves browser launching and callback capture to the
 application because desktop, CLI, server-side, and mobile hosts need different
 redirect handling.
+
+Persist token snapshots only in protected storage such as an OS keychain, a
+credential manager, or a service secret store. The JSON helper defines the SDK's
+portable snapshot format; it does not make plain files safe for bearer or
+refresh tokens.
 
 ## Client Registration
 

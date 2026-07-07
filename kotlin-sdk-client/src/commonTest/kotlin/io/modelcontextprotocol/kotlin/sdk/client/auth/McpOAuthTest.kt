@@ -18,9 +18,11 @@ import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlin.test.Test
@@ -1188,6 +1190,81 @@ class McpOAuthTest {
         assertEquals(false, restored.shouldRefresh(currentEpochSeconds = 1_700L, refreshSkewSeconds = 60))
         assertEquals(true, restored.shouldRefresh(currentEpochSeconds = 1_740L, refreshSkewSeconds = 60))
         assertEquals(listOf(snapshot), updates)
+    }
+
+    @Test
+    fun `should encode and decode token store snapshot json`() {
+        val snapshot = McpOAuthTokenStoreSnapshot(
+            accessToken = "access-1",
+            refreshToken = "refresh-1",
+            tokenType = "Bearer",
+            expiresIn = 600,
+            expiresAtEpochSeconds = 1_800L,
+            scope = "tools:call resources:read",
+            raw = buildJsonObject {
+                put("issuer", JsonPrimitive("https://auth.example.com"))
+            },
+        )
+
+        val jsonString = snapshot.toMcpOAuthTokenStoreSnapshotJsonString()
+        val jsonObject = McpJson.parseToJsonElement(jsonString).jsonObject
+        val decoded = mcpOAuthTokenStoreSnapshotFromJsonString(jsonString)
+
+        assertEquals("access-1", jsonObject["access_token"]?.jsonPrimitive?.content)
+        assertEquals("refresh-1", jsonObject["refresh_token"]?.jsonPrimitive?.content)
+        assertEquals("Bearer", jsonObject["token_type"]?.jsonPrimitive?.content)
+        assertEquals(600, jsonObject["expires_in"]?.jsonPrimitive?.intOrNull)
+        assertEquals(1_800L, jsonObject["expires_at_epoch_seconds"]?.jsonPrimitive?.longOrNull)
+        assertEquals("tools:call resources:read", jsonObject["scope"]?.jsonPrimitive?.content)
+        assertEquals("https://auth.example.com", jsonObject["raw"]?.jsonObject?.get("issuer")?.jsonPrimitive?.content)
+        assertEquals(snapshot, decoded)
+    }
+
+    @Test
+    fun `should omit absent token snapshot json fields`() {
+        val jsonObject = McpOAuthTokenStoreSnapshot(accessToken = "access-1")
+            .toMcpOAuthTokenStoreSnapshotJsonObject()
+
+        assertEquals(setOf("access_token"), jsonObject.keys)
+        assertEquals("access-1", mcpOAuthTokenStoreSnapshotFromJsonObject(jsonObject).accessToken)
+    }
+
+    @Test
+    fun `should persist updated token snapshot json from callback`() {
+        var persistedJson: String? = null
+        val tokenStore = McpOAuthTokenStore(
+            McpOAuthTokenResponse(
+                accessToken = "access-1",
+                refreshToken = "refresh-1",
+                raw = buildJsonObject {},
+            ),
+        ) { snapshot ->
+            persistedJson = snapshot.toMcpOAuthTokenStoreSnapshotJsonString()
+        }
+
+        tokenStore.update(
+            McpOAuthTokenResponse(
+                accessToken = "access-2",
+                tokenType = "Bearer",
+                expiresIn = 600,
+                raw = buildJsonObject {},
+            ),
+            receivedAtEpochSeconds = 1_200L,
+        )
+
+        val restoredSnapshot = mcpOAuthTokenStoreSnapshotFromJsonString(persistedJson!!)
+        val restored = McpOAuthTokenStore(restoredSnapshot)
+
+        assertEquals("access-2", restored.accessToken)
+        assertEquals("refresh-1", restored.refreshToken)
+        assertEquals(1_800L, restored.expiresAtEpochSeconds)
+    }
+
+    @Test
+    fun `should reject token snapshot json without access token`() {
+        assertFailsWith<McpOAuthException> {
+            mcpOAuthTokenStoreSnapshotFromJsonString("""{"refresh_token":"refresh-1"}""")
+        }
     }
 
     @Test
