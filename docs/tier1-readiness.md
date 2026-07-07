@@ -112,11 +112,11 @@ Known gaps and risks:
   token exchange/provider support, `private_key_jwt` assertion request support,
   JVM RS256 assertion signing, Client ID Metadata Document JSON generation,
   dynamic client registration support, expiry-aware token snapshot/restore
-  helpers, and dynamic Streamable HTTP bearer-header coverage. Server auth now
-  has Protected Resource Metadata, Bearer challenge helpers, request-level
-  bearer guard helpers, and verified JWT claims validation helpers, but the full
-  SDK OAuth flow still needs browser/callback, token persistence, and transport
-  bootstrap integration where appropriate.
+  helpers, token-store-backed Streamable HTTP bootstrap helpers, and dynamic
+  Streamable HTTP bearer-header coverage. Server auth now has Protected Resource
+  Metadata, Bearer challenge helpers, request-level bearer guard helpers, and
+  verified JWT claims validation helpers, but the full SDK OAuth flow still
+  needs browser/callback and token persistence integration where appropriate.
 - `docs/auth-oauth.md` now documents the current OAuth helper flow, non-JVM
   JWT assertion provider wiring, JWKS publication, and JWT/JWKS verification
   responsibilities, but the full SDK OAuth flow still needs integration beyond
@@ -163,8 +163,8 @@ Known gaps and risks:
 
 - Keep security-sensitive host validation examples current as resource, roots,
   and tool host-integration APIs evolve.
-- Continue auth/OAuth parity from the current flow helpers toward a complete
-  reusable client/server OAuth experience.
+- Continue auth/OAuth parity from the current flow and transport helpers toward
+  a complete reusable client/server OAuth experience.
 - Keep `docs/tier1-sdk-capability-matrix.md` synchronized with implementation
   and documentation progress.
 - Keep Tasks documentation as extension documentation, separate from the Tier 1

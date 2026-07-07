@@ -40,6 +40,7 @@ The Kotlin SDK currently provides client-side OAuth helpers for:
 - Refresh-token exchange.
 - Token store snapshot/restore helpers for application-managed secure storage.
 - Bearer-token request decoration.
+- Streamable HTTP transport/client bootstrap helpers backed by the token store.
 - One automatic refresh/retry on `401 Unauthorized` for Ktor HTTP clients.
 - Client credentials token exchange and a Ktor bearer provider for
   machine-to-machine clients.
@@ -81,15 +82,13 @@ on behalf of a user.
 ```kotlin
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.sse.SSE
-import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthAuthorizationCodeFlowRequest
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthClientCredentials
 import io.modelcontextprotocol.kotlin.sdk.client.auth.McpOAuthTokenStore
 import io.modelcontextprotocol.kotlin.sdk.client.auth.exchangeMcpOAuthAuthorizationCode
-import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpBearerAuth
+import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpOAuthStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.auth.mcpPkceS256
 import io.modelcontextprotocol.kotlin.sdk.client.auth.prepareMcpOAuthAuthorizationCodeFlow
-import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import java.security.SecureRandom
 
@@ -132,14 +131,7 @@ suspend fun connectAfterAuthorization(
     val mcpHttpClient = HttpClient {
         install(SSE)
     }
-    val transport = StreamableHttpClientTransport(
-        client = mcpHttpClient,
-        url = serverUrl,
-        requestBuilder = mcpBearerAuth { tokenStore.accessToken },
-    )
-    val client = Client(Implementation("oauth-client", "1.0.0"))
-    client.connect(transport)
-    return client
+    return mcpHttpClient.mcpOAuthStreamableHttp(serverUrl, tokenStore)
 }
 ```
 
@@ -344,6 +336,12 @@ fun authenticatedHttpClient(
 
 Use a separate `tokenClient` for token endpoint calls so the resource-server
 bearer interceptor does not send MCP access tokens to the authorization server.
+
+Use `mcpOAuthStreamableHttpTransport` or `mcpOAuthStreamableHttp` after an
+authorization-code flow to bootstrap a Streamable HTTP MCP transport from a
+token store. The helper reads the access token for each outgoing request, so
+refreshes or application-managed token updates are reflected without rebuilding
+the transport.
 
 ## Scope Challenges and Step-Up
 
