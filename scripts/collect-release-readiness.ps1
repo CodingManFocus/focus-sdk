@@ -224,10 +224,12 @@ if ($RunChecks) {
 
     foreach ($command in $commands) {
         $result = Invoke-Capture -FilePath ".\gradlew.bat" -Arguments $command
+        $commandText = ".\gradlew.bat $($command -join ' ')"
         $validationResults += [pscustomobject]@{
-            Command = ".\gradlew.bat $($command -join ' ')"
+            Command = $commandText
             ExitCode = $result.ExitCode
         }
+        Add-CheckResult -Checks $checks -Name "Validation: $($command -join ' ')" -Pass ($result.ExitCode -eq 0) -Evidence "$commandText exit=$($result.ExitCode)"
     }
 }
 

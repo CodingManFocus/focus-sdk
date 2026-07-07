@@ -117,6 +117,9 @@ Tier request. The release readiness report embeds the maintenance collector
 output so issue-label, triage, and P0 evidence are captured with the release
 gate results.
 
+When `-RunChecks` is used, each default Gradle validation gate is also recorded
+as a PASS/BLOCKED row in the Tier 1 release checks table.
+
 The collector treats documentation, GitHub workflow, and release-evidence script
 changes after the last recorded conformance run as evidence-only changes. Any
 runtime, protocol, build, transport, auth, or conformance harness change after
