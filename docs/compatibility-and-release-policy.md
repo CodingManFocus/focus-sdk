@@ -104,6 +104,12 @@ release policy.
 
 For documentation-only changes, run at least `git diff --check`.
 
+Before a Tier 1 release candidate, generate a release readiness report:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-release-readiness.ps1 -RunChecks
+```
+
 For code changes, choose the narrowest validation that covers the affected
 surface. The default release-readiness gate is:
 
@@ -128,6 +134,9 @@ Before requesting Tier 1, the SDK should have:
 - A published `1.0.0` or later artifact without a pre-release identifier.
 - Current release notes following this policy.
 - A clean `apiCheck` result.
+- A release readiness report from `scripts/collect-release-readiness.ps1`
+  showing the stable artifact version, current conformance evidence, and
+  validation gate results.
 - Current conformance evidence for the target stable protocol.
 - Feature documentation covering supported client, server, transport, auth,
   sampling, elicitation, roots, prompts, resources, tools, completion, logging,
