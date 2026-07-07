@@ -110,6 +110,12 @@ Before a Tier 1 release candidate, generate a release readiness report:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-release-readiness.ps1 -RunChecks
 ```
 
+The collector treats documentation, GitHub workflow, and release-evidence script
+changes after the last recorded conformance run as evidence-only changes. Any
+runtime, protocol, build, transport, auth, or conformance harness change after
+the recorded revision requires a fresh full conformance run before requesting
+Tier advancement.
+
 For code changes, choose the narrowest validation that covers the affected
 surface. The default release-readiness gate is:
 

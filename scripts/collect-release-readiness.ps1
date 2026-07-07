@@ -75,6 +75,46 @@ function Add-CheckResult {
     })
 }
 
+function Add-CheckStatus {
+    param(
+        [System.Collections.Generic.List[object]]$Checks,
+        [string]$Name,
+        [string]$Status,
+        [string]$Evidence
+    )
+
+    $Checks.Add([pscustomobject]@{
+        Name = $Name
+        Status = $Status
+        Evidence = $Evidence
+    })
+}
+
+function Test-EvidenceOnlyPath {
+    param([string]$Path)
+
+    $normalized = $Path.Replace("\", "/")
+    if ($normalized -eq "README.md") {
+        return $true
+    }
+    if ($normalized.EndsWith(".md")) {
+        return $true
+    }
+    if ($normalized.StartsWith("docs/")) {
+        return $true
+    }
+    if ($normalized.StartsWith(".github/")) {
+        return $true
+    }
+    if ($normalized -eq "scripts/collect-maintenance-evidence.ps1") {
+        return $true
+    }
+    if ($normalized -eq "scripts/collect-release-readiness.ps1") {
+        return $true
+    }
+    return $false
+}
+
 $root = (Resolve-Path ".").Path
 $gradleProperties = Join-Path $root "gradle.properties"
 $commonTypes = Join-Path $root "kotlin-sdk-core/src/commonMain/kotlin/io/modelcontextprotocol/kotlin/sdk/types/common.kt"
@@ -112,13 +152,35 @@ $supportedProtocols = @($supportedProtocols | Where-Object { -not [string]::IsNu
 $conformanceText = Get-Content -Raw -Path $conformanceStatus
 $conformanceRevision = Get-RegexValue -Text $conformanceText -Pattern 'Verified revision:\s*`([^`]+)`'
 $conformanceDate = Get-RegexValue -Text $conformanceText -Pattern 'Last verified:\s*(\d{4}-\d{2}-\d{2})'
+$conformanceChangedFiles = @()
+$runtimeChangedFiles = @()
+$conformanceEvidenceStatus = "BLOCKED"
+$conformanceEvidenceText = "conformance revision=$conformanceRevision, HEAD=$gitHead, date=$conformanceDate"
+if (-not [string]::IsNullOrWhiteSpace($conformanceRevision)) {
+    if ($conformanceRevision -eq $gitHead) {
+        $conformanceEvidenceStatus = "PASS"
+    } else {
+        $mergeBase = Invoke-Capture -FilePath "git" -Arguments @("merge-base", "--is-ancestor", $conformanceRevision, "HEAD")
+        if ($mergeBase.ExitCode -eq 0) {
+            $changedOutput = & git diff --name-only "$conformanceRevision..HEAD"
+            $conformanceChangedFiles = @($changedOutput | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            $runtimeChangedFiles = @($conformanceChangedFiles | Where-Object { -not (Test-EvidenceOnlyPath $_) })
+            if ($runtimeChangedFiles.Count -eq 0) {
+                $conformanceEvidenceStatus = "PASS"
+                $conformanceEvidenceText = "$conformanceEvidenceText; only evidence/docs changes since conformance revision"
+            } else {
+                $conformanceEvidenceText = "$conformanceEvidenceText; runtime-impacting changes since conformance revision: $($runtimeChangedFiles -join ', ')"
+            }
+        }
+    }
+}
 
 $checks = New-Object System.Collections.Generic.List[object]
 Add-CheckResult -Checks $checks -Name "Clean working tree" -Pass ([string]::IsNullOrWhiteSpace(($gitStatus -join ""))) -Evidence "git status --short"
 Add-CheckResult -Checks $checks -Name "Stable release version" -Pass (Test-StableReleaseVersion $version) -Evidence "gradle.properties version=$version"
 Add-CheckResult -Checks $checks -Name "Latest protocol declared" -Pass (-not [string]::IsNullOrWhiteSpace($latestProtocol)) -Evidence "LATEST_PROTOCOL_VERSION=$latestProtocol"
 Add-CheckResult -Checks $checks -Name "Supported protocol list declared" -Pass (@($supportedProtocols).Count -gt 0) -Evidence "SUPPORTED_PROTOCOL_VERSIONS=$($supportedProtocols -join ', ')"
-Add-CheckResult -Checks $checks -Name "Conformance evidence matches HEAD" -Pass ($conformanceRevision -eq $gitHead) -Evidence "conformance revision=$conformanceRevision, HEAD=$gitHead, date=$conformanceDate"
+Add-CheckStatus -Checks $checks -Name "Conformance evidence covers runtime code" -Status $conformanceEvidenceStatus -Evidence $conformanceEvidenceText
 Add-CheckResult -Checks $checks -Name "Compatibility policy present" -Pass (Test-Path $compatibilityPolicy) -Evidence $compatibilityPolicy
 Add-CheckResult -Checks $checks -Name "Dependency policy present" -Pass (Test-Path $dependencyPolicy) -Evidence $dependencyPolicy
 Add-CheckResult -Checks $checks -Name "Tier roadmap present" -Pass (Test-Path $tierRoadmap) -Evidence $tierRoadmap
