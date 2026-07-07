@@ -303,6 +303,12 @@ public open class ServerSession(
                 }
             }
 
+            Defined.CompletionComplete -> {
+                if (serverCapabilities.completions == null) {
+                    error("Server does not support completions (required for $method)")
+                }
+            }
+
             Defined.ResourcesList,
             Defined.ResourcesTemplatesList,
             Defined.ResourcesRead,

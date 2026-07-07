@@ -7,6 +7,8 @@ import io.modelcontextprotocol.kotlin.sdk.shared.RequestOptions
 import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.CompleteRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CompleteResult
 import io.modelcontextprotocol.kotlin.sdk.types.CreateMessageRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CreateMessageResult
 import io.modelcontextprotocol.kotlin.sdk.types.ElicitRequestParams
@@ -124,6 +126,8 @@ public open class Server(
     private var _onConnect: (() -> Unit) = {}
 
     private var _onClose: () -> Unit = {}
+
+    private var completionHandler: (suspend ClientConnection.(CompleteRequest) -> CompleteResult)? = null
 
     @OptIn(ExperimentalTime::class)
     private val notificationService = FeatureNotificationService()
@@ -251,6 +255,12 @@ public open class Server(
                     // Does not return any confirmation as the structure is not stated in the protocol
                     null
                 }
+            }
+        }
+
+        completionHandler?.let { handler ->
+            session.setRequestHandler<CompleteRequest>(Method.Defined.CompletionComplete) { request, _ ->
+                session.clientConnection.handler(request)
             }
         }
 
@@ -475,6 +485,22 @@ public open class Server(
         }
 
         return promptRegistry.removeAll(promptNames)
+    }
+
+    /**
+     * Registers the server handler for `completion/complete` requests.
+     *
+     * Completion suggestions are scoped to prompt arguments or resource template
+     * arguments. Register this before creating sessions so new sessions install the handler.
+     *
+     * @param handler A suspend function that returns completion suggestions for the request.
+     * @throws IllegalStateException If the server does not support completions.
+     */
+    public fun setCompletionHandler(handler: suspend ClientConnection.(CompleteRequest) -> CompleteResult) {
+        checkNotNull(options.capabilities.completions) {
+            "Server does not support completions capability."
+        }
+        completionHandler = handler
     }
 
     /**

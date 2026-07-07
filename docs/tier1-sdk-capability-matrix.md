@@ -65,8 +65,8 @@ Status legend:
 | Protocol primitives | Ready | Core/shared types and `Protocol` cover JSON-RPC framing, lifecycle, ping, cancellation, progress, pagination, metadata, capabilities, and request correlation. | Continue schema parity audits against the stable spec. |
 | Tools | Ready, keep fresh | Server `addTool`/`removeTool`; client `listTools`/`callTool`; README examples; `docs/tools.md` covers structured output, output schemas, no-parameter schemas, catalog notifications, error handling, and security guidance. | Keep examples current after tool type or validation changes. |
 | Resources | Ready, keep fresh | Server resources/templates/subscription notifications; client list/read/subscribe/unsubscribe; README examples; `docs/resources.md` covers resources, templates, subscriptions, catalog notifications, update notifications, URI validation, and security guidance. | Keep examples current after resource type, notification, or template matching changes. |
-| Prompts | Ready | Server prompt registration; client list/get prompt; README examples. | Add prompt completion examples. |
-| Completion | Ready | Server completion capability and client `complete`; README example. | Add dedicated guide and edge-case tests when changing behavior. |
+| Prompts | Ready, keep fresh | Server prompt registration; client list/get prompt; README examples; `docs/prompts-completion.md` covers prompt arguments, catalog notifications, client prompt calls, validation, and security guidance. | Keep examples current after prompt type or registry changes. |
+| Completion | Ready, keep fresh | Server completion capability, high-level `setCompletionHandler`, client `complete`, README example, and `docs/prompts-completion.md` coverage for prompt and resource-template completions. | Keep examples current after completion type or validation changes. |
 | Logging | Ready | Server logging notifications and client `setLoggingLevel`; README example. | Add level/filter guidance. |
 | Pagination | Ready | Cursor support in list operations; README pagination example. | Add conformance-backed examples for every paginated list. |
 | Roots | Ready | Client root registry and roots/list_changed notification; server `listRoots`; README example. | Add security guidance for root grants. |
@@ -82,7 +82,7 @@ Status legend:
 | Release policy | Partial | `docs/compatibility-and-release-policy.md` documents protocol versions, release notes, API compatibility, validation gates, and `1.0.0` graduation. | Publish a `1.0.0` or later artifact when evidence is complete. |
 | Dependency policy | Ready | `docs/dependency-update-policy.md` exists. | Keep cadence and validation gates current. |
 | Roadmap | Ready | `docs/tier1-readiness.md` tracks phases, criteria, risks, and Tier request evidence. | Keep this matrix and roadmap synchronized after each slice. |
-| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, resources/templates/subscriptions, sampling, Streamable HTTP, and tools. | Add dedicated guides for prompts/completion, roots, logging, and pagination. |
+| Documentation coverage | Partial | README has broad examples; dedicated guides now cover auth/OAuth, elicitation, prompts/completion, resources/templates/subscriptions, sampling, Streamable HTTP, and tools. | Add dedicated guides for roots, logging, and pagination. |
 | Maintenance labels and SLAs | Partial | `docs/maintenance-policy.md` documents the two-business-day triage commitment, seven-day P0 commitment, and required Type/Status/Priority label taxonomy. `CodingManFocus/focus-sdk` labels were verified on 2026-07-06 with `gh label list --repo CodingManFocus/focus-sdk --limit 100`. | Collect operational evidence that triage and P0 resolution metrics are being met before Tier request. |
 
 ## Priority Slices
@@ -91,7 +91,7 @@ Status legend:
    add non-JVM JWT assertion signing guidance and full JWT signature/JWKS
    validation examples.
 2. Remaining feature guides:
-   add focused guides for prompts/completion, roots, logging, and pagination.
+   add focused guides for roots, logging, and pagination.
 3. Maintenance evidence:
    collect operational evidence that issue triage and P0 resolution metrics
    are being met against the published policy.

@@ -19,11 +19,12 @@ import kotlin.test.assertFailsWith
 
 /**
  * Tests for the protected helpers [ServerSession.assertCapabilityForMethod] and
- * [ServerSession.assertNotificationCapability].
+ * [ServerSession.assertNotificationCapability], and [ServerSession.assertRequestHandlerCapability].
  *
- * Both helpers are `protected`, so this suite uses a small subclass [TestServerSession]
- * that re-exports them via [TestServerSession.exposedAssertCapabilityForMethod] and
- * [TestServerSession.exposedAssertNotificationCapability]. Client capabilities are
+ * These helpers are `protected`, so this suite uses a small subclass [TestServerSession]
+ * that re-exports them via [TestServerSession.exposedAssertCapabilityForMethod],
+ * [TestServerSession.exposedAssertNotificationCapability], and
+ * [TestServerSession.exposedAssertRequestHandlerCapability]. Client capabilities are
  * seeded by replaying an [InitializeRequest] through [InitializeReplayTransport]:
  * the transport drives the inbound side of the handshake on `start()`, which causes
  * the session's internal [Method.Defined.Initialize] handler to populate
@@ -79,6 +80,23 @@ class ServerSessionAssertCapabilityTest {
         ex.message.orEmpty() shouldContain "Server does not support tasks"
     }
 
+    @Test
+    fun `server CompletionComplete handler throws when server has no completions capability`() = runTest {
+        val session = newTestServerSession(serverCapabilities = ServerCapabilities())
+        val ex = assertFailsWith<IllegalStateException> {
+            session.exposedAssertRequestHandlerCapability(Method.Defined.CompletionComplete)
+        }
+        ex.message.orEmpty() shouldContain "Server does not support completions"
+    }
+
+    @Test
+    fun `server CompletionComplete handler succeeds when server declared completions`() = runTest {
+        val session = newTestServerSession(
+            serverCapabilities = ServerCapabilities(completions = ServerCapabilities.Completions),
+        )
+        session.exposedAssertRequestHandlerCapability(Method.Defined.CompletionComplete)
+    }
+
     private suspend fun newTestServerSession(
         clientCapabilities: ClientCapabilities = ClientCapabilities(),
         serverCapabilities: ServerCapabilities = ServerCapabilities(),
@@ -95,13 +113,14 @@ class ServerSessionAssertCapabilityTest {
 
     /**
      * Test-only [ServerSession] subclass that exposes the protected
-     * [ServerSession.assertCapabilityForMethod] and
-     * [ServerSession.assertNotificationCapability] helpers to the test code.
+     * [ServerSession.assertCapabilityForMethod], [ServerSession.assertNotificationCapability],
+     * and [ServerSession.assertRequestHandlerCapability] helpers to the test code.
      */
     private class TestServerSession(serverInfo: Implementation, options: ServerOptions, instructions: String?) :
         ServerSession(serverInfo, options, instructions) {
         fun exposedAssertCapabilityForMethod(method: Method): Unit = assertCapabilityForMethod(method)
         fun exposedAssertNotificationCapability(method: Method): Unit = assertNotificationCapability(method)
+        fun exposedAssertRequestHandlerCapability(method: Method): Unit = assertRequestHandlerCapability(method)
     }
 
     /**

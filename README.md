@@ -471,17 +471,11 @@ handle `completion/complete` requests to return up to 100 ranked values (include
 <!--- INCLUDE
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
-import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
-import io.modelcontextprotocol.kotlin.sdk.types.CompleteRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CompleteResult
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
-import kotlinx.io.asSink
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 
-suspend fun main() {
+fun main() {
 -->
 
 ```kotlin
@@ -497,14 +491,7 @@ val server = Server(
     )
 )
 
-val session = server.createSession(
-    StdioServerTransport(
-        inputStream = System.`in`.asSource().buffered(),
-        outputStream = System.out.asSink().buffered()
-    )
-)
-
-session.setRequestHandler<CompleteRequest>(Method.Defined.CompletionComplete) { request, _ ->
+server.setCompletionHandler { request ->
     val options = listOf("kotlin", "compose", "coroutine")
     val matches = options.filter { it.startsWith(request.argument.value.lowercase()) }
 
@@ -974,6 +961,7 @@ See the [samples overview](./samples/README.md) for a comparison table and detai
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 - [Auth and OAuth guide](./docs/auth-oauth.md)
 - [Elicitation guide](./docs/elicitation.md)
+- [Prompts and completion guide](./docs/prompts-completion.md)
 - [Resources guide](./docs/resources.md)
 - [Sampling guide](./docs/sampling.md)
 - [Streamable HTTP guide](./docs/streamable-http.md)
